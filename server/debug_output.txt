@@ -1,0 +1,8 @@
+--- Debugging Attendance Report Issue ---
+Found Student: John Doe, Department: "Computer Science"
+WARNING: No Department definition found for name "Computer Science"
+No department found with code "Computer Science" either.
+Frontend likely sends: "Computer Science"
+Controller query with where.department="Computer Science" found: 2 students
+[SUCCESS] Controller found students.
+Found 0 attendance records for these students.

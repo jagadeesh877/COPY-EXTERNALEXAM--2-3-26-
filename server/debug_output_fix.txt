@@ -1,0 +1,10 @@
+--- Verifying Attendance Report Fix ---
+Using Department: Name="First Year (General)", Code="GEN"
+No student found in "First Year (General)". Creating one...
+Testing with Student: Test Student, Stored Dept: "First Year (General)"
+Scenario: Frontend sends "GEN", Database has Name "First Year (General)"
+
+Applying Fix Logic with input: "GEN"...
+Generated Prisma Query Query: {"department":{"in":["First Year (General)","GEN"]}}
+Students found: 1
+[SUCCESS] Fix Verified: Students were found using Department CODE.

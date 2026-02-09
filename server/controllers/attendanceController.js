@@ -126,9 +126,13 @@ const getAttendanceReport = async (req, res) => {
 
     try {
         const where = {};
-        if (department) where.department = department;
+        if (department) {
+            where.department = await getDeptCriteria(department);
+        }
         if (year) where.year = parseInt(year);
         if (section) where.section = section;
+
+        console.log('Attendance Report Query:', JSON.stringify(where, null, 2));
 
         const students = await prisma.student.findMany({
             where: where,

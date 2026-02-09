@@ -1,0 +1,14 @@
+--- Checking Dashboard Stats Logic ---
+Student Department Groups: [
+  {
+    "_count": {
+      "id": 1
+    },
+    "department": "MECHANICAL"
+  }
+]
+
+Evaluating Group: "MECHANICAL"
+[CURRENT LOGIC] Faculty Count: 0
+[FIX LOGIC] Matched Dept: MECHANICAL / MECH
+[FIX LOGIC] Faculty Count: 12

@@ -570,18 +570,20 @@ const getDepartments = async (req, res) => {
             // Stats Aggregation
             const isGeneral = dept.name === 'First Year (General)';
 
+            const deptCriteria = { in: [dept.name, dept.code].filter(Boolean) };
+
             const studentCount = await prisma.student.count({
                 where: isGeneral
-                    ? { OR: [{ department: dept.name }, { department: null }, { department: '' }], year: 1 }
-                    : { department: dept.name }
+                    ? { OR: [{ department: { in: deptCriteria.in } }, { department: null }, { department: '' }], year: 1 }
+                    : { department: { in: deptCriteria.in } }
             });
             const facultyCount = await prisma.user.count({
-                where: { department: dept.name, role: 'FACULTY' }
+                where: { department: { in: deptCriteria.in }, role: 'FACULTY' }
             });
             const subjectCount = await prisma.subject.count({
                 where: isGeneral
-                    ? { OR: [{ department: dept.name }, { department: null }, { department: '' }], type: 'COMMON' }
-                    : { department: dept.name }
+                    ? { OR: [{ department: { in: deptCriteria.in } }, { department: null }, { department: '' }], type: 'COMMON' }
+                    : { department: { in: deptCriteria.in } }
             });
 
             return {
@@ -1083,23 +1085,44 @@ const getDashboardStats = async (req, res) => {
         const subjectCount = await prisma.subject.count();
         const deptCount = await prisma.department.count();
 
-        // Department-wise data (treating NULL as "Unassigned/First Year")
-        const departments = await prisma.student.groupBy({
-            by: ['department'],
-            _count: { id: true }
-        });
+        // Department-wise data (Iterate over ALL departments to ensure we show them even if empty)
+        const allDepts = await prisma.department.findMany();
 
-        const departmentData = await Promise.all(departments.map(async (dept) => {
-            const facultyInDept = await prisma.user.count({
+        const departmentData = await Promise.all(allDepts.map(async (dept) => {
+            const deptName = dept.name;
+            const isFirstYear = deptName === 'First Year (General)';
+
+            let whereClause = {};
+
+            if (isFirstYear) {
+                // First Year includes null, empty, or explicit "First Year (General)"
+                whereClause.OR = [
+                    { department: null },
+                    { department: '' },
+                    { department: 'First Year (General)' },
+                    { department: 'GEN' }
+                ];
+            } else {
+                // Standard Dept: Match Name OR Code
+                // We already have name and code from 'dept' object
+                whereClause.department = { in: [dept.name, dept.code].filter(Boolean) };
+            }
+
+            const studentCount = await prisma.student.count({
+                where: whereClause // Same logic for students
+            });
+
+            const facultyCount = await prisma.user.count({
                 where: {
                     role: 'FACULTY',
-                    department: dept.department === null ? { in: [null, '', 'First Year (General)'] } : dept.department
+                    ...whereClause // Same logic for faculty
                 }
             });
+
             return {
-                dept: dept.department || 'First Year (General)',
-                students: dept._count.id,
-                faculty: facultyInDept
+                dept: dept.name,
+                students: studentCount,
+                faculty: facultyCount
             };
         }));
 

@@ -15,6 +15,7 @@ import AttendanceReports from './admin/AttendanceReports';
 import ExamControlCenter from './admin/ExamControlCenter';
 import EndSemMarksEntry from './admin/EndSemMarksEntry';
 import ExternalStaffManager from './admin/ExternalStaffManager';
+import DummyNumberManager from './admin/DummyNumberManager';
 import Announcements from './Announcements';
 import Settings from './Settings';
 
@@ -28,7 +29,7 @@ const AdminDashboard = () => {
             <div className="flex-1 flex flex-col ml-64 transition-all duration-300">
                 <Header title="College ERP" />
 
-                <main className="flex-1 p-0 mt-24 overflow-y-auto animate-fadeIn">
+                <main className="flex-1 p-8 mt-24 overflow-y-auto animate-fadeIn">
                     <Routes>
                         <Route path="/" element={<AdminHome />} />
                         <Route path="faculty" element={<FacultyManager />} />
@@ -41,6 +42,7 @@ const AdminDashboard = () => {
                         <Route path="marks/:subjectId" element={<AdminMarksManager />} />
                         <Route path="marks-approval" element={<AdminMarksApproval />} />
                         <Route path="exams" element={<ExamControlCenter />} />
+                        <Route path="dummy-mapping" element={<DummyNumberManager />} />
                         <Route path="end-sem-marks" element={<EndSemMarksEntry />} />
                         <Route path="external" element={<ExternalStaffManager />} />
                         <Route path="announcements" element={<Announcements role="ADMIN" />} />

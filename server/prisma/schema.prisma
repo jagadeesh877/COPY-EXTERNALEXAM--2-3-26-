@@ -24,13 +24,14 @@ model User {
   createdAt           DateTime            @default(now())
   activityPerformed   ActivityLog[]       @relation("PerformedBy")
   announcements       Announcement[]      @relation("PostedBy")
-  externalStaffTasks  ExternalStaffTask[] @relation("ExternalStaffTasks")
+  externalStaffTasks  ExternalMarkAssignment[] @relation("ExternalStaffAssignments")
   facultyAbsences     FacultyAbsence[]
   marksApproved       Marks[]             @relation("MarksApprover")
   materials           Material[]          @relation("Instructor")
   takenAttendance     StudentAttendance[]
   substitutions       Substitution[]
   timetables          Timetable[]
+  externalMarksSubmitted ExternalMark[] @relation("ExternalEvaluator")
 }
 
 model ActivityLog {
@@ -67,6 +68,7 @@ model Student {
   marks          Marks[]
   results        SemesterResult[]
   attendance     StudentAttendance[]
+  dummyMappings  SubjectDummyMapping[]
 }
 
 model Timetable {
@@ -102,12 +104,14 @@ model Subject {
   credits            Int                 @default(3)
   type               String              @default("DEPARTMENT")
   arrears            Arrear[]
-  externalStaffTasks ExternalStaffTask[]
+  externalStaffTasks ExternalMarkAssignment[]
   facultyAssignments FacultyAssignment[]
   marks              Marks[]
   materials          Material[]
   attendance         StudentAttendance[]
   timetables         Timetable[]
+  dummyMappings      SubjectDummyMapping[]
+  externalMarks     ExternalMark[]
 }
 
 model Announcement {
@@ -177,6 +181,8 @@ model Marks {
   student         Student      @relation(fields: [studentId], references: [id])
 
   @@unique([studentId, subjectId])
+  @@index([studentId])
+  @@index([subjectId])
 }
 
 model EndSemMarks {
@@ -188,8 +194,11 @@ model EndSemMarks {
   resultStatus  String?
   isPublished   Boolean  @default(false)
   isLocked      Boolean  @default(false)
-  updatedAt     DateTime @updatedAt
-  marks         Marks    @relation(fields: [marksId], references: [id])
+  attendanceSnapshot Float?
+  updatedAt          DateTime @updatedAt
+  marks              Marks    @relation(fields: [marksId], references: [id])
+
+  @@index([marksId])
 }
 
 model GradeSettings {
@@ -271,19 +280,16 @@ model ArrearAttempt {
   arrear        Arrear    @relation(fields: [arrearId], references: [id])
 }
 
-model ExternalStaffTask {
+model ExternalMarkAssignment {
   id               Int      @id @default(autoincrement())
   staffId          Int
   subjectId        Int
   deadline         DateTime
   status           String   @default("ASSIGNED")
-  questionPaperUrl String?
-  remarks          String?
-  version          Int      @default(1)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   subject          Subject  @relation(fields: [subjectId], references: [id])
-  staff            User     @relation("ExternalStaffTasks", fields: [staffId], references: [id])
+  staff            User     @relation("ExternalStaffAssignments", fields: [staffId], references: [id])
 }
 
 model FacultyAbsence {
@@ -324,4 +330,45 @@ model StudentAttendance {
   student   Student  @relation(fields: [studentId], references: [id])
 
   @@unique([studentId, subjectId, date, period])
+}
+
+model SubjectDummyMapping {
+  id                 Int      @id @default(autoincrement())
+  studentId          Int
+  originalRegisterNo String
+  subjectId          Int
+  subjectCode        String
+  department         String
+  semester           Int
+  section            String
+  academicYear       String
+  dummyNumber        String   @unique
+  mappingLocked      Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([studentId, subjectId])
+  @@unique([subjectId, dummyNumber])
+  @@index([dummyNumber])
+  @@index([studentId])
+  @@index([subjectId])
+}
+
+model ExternalMark {
+  id                  Int      @id @default(autoincrement())
+  subjectId           Int
+  dummyNumber         String   @unique
+  rawExternal100      Float
+  convertedExternal60 Float
+  submittedBy         Int
+  submittedAt         DateTime @default(now())
+  locked              Boolean  @default(false)
+
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  evaluator User    @relation("ExternalEvaluator", fields: [submittedBy], references: [id])
+
+  @@index([dummyNumber])
+  @@index([subjectId])
 }

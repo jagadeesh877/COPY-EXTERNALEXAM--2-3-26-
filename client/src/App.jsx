@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import FacultyDashboard from './pages/FacultyDashboard';
 import ExternalDashboard from './pages/external/ExternalDashboard';
+import ExternalMarkEntry from './pages/external/ExternalMarkEntry';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -22,7 +23,8 @@ function App() {
 
             {/* External Staff Routes */}
             <Route element={<ProtectedRoute allowedRoles={['EXTERNAL_STAFF']} />}>
-                <Route path="/external/*" element={<ExternalDashboard />} />
+                <Route path="/external" element={<ExternalDashboard />} />
+                <Route path="/external/marks/:assignmentId" element={<ExternalMarkEntry />} />
             </Route>
         </Routes>
     );

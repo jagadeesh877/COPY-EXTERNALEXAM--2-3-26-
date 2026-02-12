@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
-import { Download, Search, FileText, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { Download, Search, FileText, AlertTriangle, FileSpreadsheet, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 // XLSX import removed - using backend export for Excel reports
 
 const AttendanceReports = () => {
@@ -91,136 +91,235 @@ const AttendanceReports = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="mb-8 animate-fadeIn">
-                <h1 className="text-4xl font-bold gradient-text mb-2 flex items-center gap-3">
-                    <FileText size={40} />
-                    Attendance Reports
-                </h1>
-                <p className="text-gray-600">Analyze student attendance trends and identify defaulters.</p>
+        <div className="flex flex-col animate-fadeIn">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 px-2">
+                <div>
+                    <h1 className="text-4xl font-black text-[#003B73] tracking-tight">Attendance Intelligence</h1>
+                    <p className="text-gray-500 font-medium mt-1">Analyze institutional attendance trends and identify student participation metrics.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={fetchReport}
+                        disabled={loading}
+                        className="px-10 py-5 bg-[#003B73] text-white rounded-[24px] font-black hover:bg-[#002850] shadow-xl shadow-blue-900/10 transition-all flex items-center gap-3 transform active:scale-95 disabled:opacity-50 group"
+                    >
+                        {loading ? (
+                            <RefreshCw size={22} className="animate-spin" />
+                        ) : (
+                            <Search size={22} strokeWidth={3} className="group-hover:scale-110 transition-transform" />
+                        )}
+                        {loading ? 'Synthesizing...' : 'Generate Intelligence'}
+                    </button>
+                </div>
             </div>
 
-            {/* Filters */}
-            <div className="premium-card p-6 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                    <div>
-                        <label className="label">Department</label>
-                        <select className="input-field w-full" value={department} onChange={e => setDepartment(e.target.value)}>
-                            {departments.map(d => <option key={d.id} value={d.code || d.name}>{d.code || d.name}</option>)}
+            {/* Analytics Filtering Dashboard */}
+            <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100 mb-10 relative overflow-hidden transition-all duration-700 hover:shadow-2xl">
+                {/* Visual Background Accent */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#003B73]/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-8 relative z-10">
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Institutional Department</label>
+                        <div className="relative group">
+                            <select
+                                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-2xl font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                value={department}
+                                onChange={e => setDepartment(e.target.value)}
+                            >
+                                {departments.map(d =>
+                                    <option key={d.id} value={d.code || d.name}>{d.code || d.name}</option>
+                                )}
+                            </select>
+                            <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#003B73] opacity-40 group-hover:opacity-100 transition-opacity">
+                                <FileText size={18} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Academic Year</label>
+                        <select
+                            className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-2xl font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                            value={year}
+                            onChange={e => setYear(e.target.value)}
+                        >
+                            {[1, 2, 3, 4].map(y => <option key={y} value={y}>{y}{y === 1 ? 'st' : y === 2 ? 'nd' : y === 3 ? 'rd' : 'th'} Year</option>)}
                         </select>
                     </div>
-                    <div>
-                        <label className="label">Year</label>
-                        <select className="input-field w-full" value={year} onChange={e => setYear(e.target.value)}>
-                            {[1, 2, 3, 4].map(y => <option key={y} value={y}>{y} Year</option>)}
+
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Section</label>
+                        <select
+                            className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-2xl font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                            value={section}
+                            onChange={e => setSection(e.target.value)}
+                        >
+                            {['A', 'B', 'C'].map(s => <option key={s} value={s}>Section {s}</option>)}
                         </select>
                     </div>
-                    <div>
-                        <label className="label">Section</label>
-                        <select className="input-field w-full" value={section} onChange={e => setSection(e.target.value)}>
-                            {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Analysis From</label>
+                        <div className="relative">
+                            <input
+                                type="date"
+                                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-2xl font-bold text-gray-700 outline-none transition-all"
+                                value={fromDate}
+                                onChange={e => setFromDate(e.target.value)}
+                            />
+                        </div>
                     </div>
-                    <div>
-                        <label className="label">From</label>
-                        <input type="date" className="input-field w-full" value={fromDate} onChange={e => setFromDate(e.target.value)} />
-                    </div>
-                    <div>
-                        <label className="label">To</label>
-                        <input type="date" className="input-field w-full" value={toDate} onChange={e => setToDate(e.target.value)} />
-                    </div>
-                    <div>
-                        <button onClick={fetchReport} className="btn btn-primary w-full flex justify-center gap-2">
-                            {loading ? '...' : 'Generate'} <Search size={18} />
-                        </button>
+
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Analysis To</label>
+                        <div className="relative">
+                            <input
+                                type="date"
+                                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-2xl font-bold text-gray-700 outline-none transition-all"
+                                value={toDate}
+                                onChange={e => setToDate(e.target.value)}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Stats Cards */}
+            {/* Intelligence Statistics Grid */}
             {reportData.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="premium-card p-4 bg-white border-l-4 border-green-500">
-                        <p className="text-gray-500 text-sm">Avg Attendance</p>
-                        <p className="text-3xl font-bold text-gray-800">
-                            {(reportData.reduce((acc, curr) => acc + parseFloat(curr.percentage), 0) / reportData.length).toFixed(1)}%
-                        </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 animate-fadeInUp">
+                    <div className="bg-white p-8 rounded-[40px] shadow-xl border border-gray-100 flex items-center justify-between group hover:shadow-2xl transition-all duration-500">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">Average Attendance</p>
+                            <p className="text-4xl font-black text-[#003B73]">
+                                {(reportData.reduce((acc, curr) => acc + parseFloat(curr.percentage || 0), 0) / reportData.length).toFixed(1)}%
+                            </p>
+                        </div>
+                        <div className="w-16 h-16 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                            <CheckCircle size={32} />
+                        </div>
                     </div>
-                    <div className="premium-card p-4 bg-white border-l-4 border-red-500">
-                        <p className="text-gray-500 text-sm">Below 75%</p>
-                        <p className="text-3xl font-bold text-red-600">
-                            {reportData.filter(s => parseFloat(s.percentage) < 75).length} Students
-                        </p>
+
+                    <div className="bg-white p-8 rounded-[40px] shadow-xl border border-gray-100 flex items-center justify-between group hover:shadow-2xl transition-all duration-500">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">Defaulter Count</p>
+                            <p className="text-4xl font-black text-red-600">
+                                {reportData.filter(s => parseFloat(s.percentage) < 75).length}
+                            </p>
+                        </div>
+                        <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform">
+                            <AlertTriangle size={32} />
+                        </div>
                     </div>
-                    <div className="premium-card p-4 bg-white border-l-4 border-blue-500">
-                        <p className="text-gray-500 text-sm">Total Classes</p>
-                        <p className="text-3xl font-bold text-blue-600">
-                            {reportData[0]?.totalClasses || 0}
-                        </p>
+
+                    <div className="bg-white p-8 rounded-[40px] shadow-xl border border-gray-100 flex items-center justify-between group hover:shadow-2xl transition-all duration-500">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">Analytical Period</p>
+                            <p className="text-4xl font-black text-blue-600">
+                                {reportData[0]?.totalClasses || 0} <span className="text-xl text-gray-300">Days</span>
+                            </p>
+                        </div>
+                        <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                            <Clock size={32} />
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Table */}
+            {/* Detailed Analytics Table */}
             {reportData.length > 0 ? (
-                <div className="premium-card overflow-hidden">
-                    <div className="p-4 border-b flex justify-between items-center">
-                        <h3 className="font-bold text-lg text-gray-700">Detailed Report</h3>
-                        <div className="flex gap-2">
-                            <button onClick={downloadCSV} className="btn btn-secondary flex items-center gap-2">
-                                <Download size={18} /> Export CSV
+                <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100 min-h-[500px] transition-all relative overflow-hidden">
+                    <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-6 relative z-10">
+                        <div>
+                            <h3 className="text-2xl font-black text-[#003B73] tracking-tight uppercase">Detailed Intelligence Report</h3>
+                            <p className="text-gray-400 font-bold text-xs uppercase tracking-widest mt-1">Granular Student Attendance Breakdown</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={downloadCSV}
+                                className="px-6 py-4 bg-gray-50 text-gray-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all shadow-sm flex items-center gap-2"
+                            >
+                                <Download size={18} /> CSV
                             </button>
                             <button
                                 onClick={exportToExcel}
                                 disabled={exporting}
-                                className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-8 py-4 bg-[#003B73] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#002850] shadow-xl shadow-blue-900/10 transition-all flex items-center gap-2 transform active:scale-95 disabled:opacity-50"
                             >
-                                <FileSpreadsheet size={18} /> {exporting ? 'Exporting...' : 'Export to Excel'}
+                                <FileSpreadsheet size={18} /> {exporting ? 'Processing...' : 'Excel Intelligence'}
                             </button>
                         </div>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
+
+                    <div className="overflow-hidden bg-gray-50/30 rounded-3xl border border-gray-100 relative z-10">
+                        <table className="w-full text-center border-collapse">
+                            <thead className="bg-gray-100/50 text-[#003B73] text-[10px] font-black uppercase tracking-[0.2em]">
                                 <tr>
-                                    <th className="p-4 text-left font-bold text-gray-600">Reg No</th>
-                                    <th className="p-4 text-left font-bold text-gray-600">Name</th>
-                                    <th className="p-4 text-center font-bold text-gray-600">Present (Days)</th>
-                                    <th className="p-4 text-center font-bold text-gray-600">OD (Days)</th>
-                                    <th className="p-4 text-center font-bold text-gray-600">Absent (Days)</th>
-                                    <th className="p-4 text-center font-bold text-gray-600">%</th>
-                                    <th className="p-4 text-center font-bold text-gray-600">Status</th>
+                                    <th className="px-8 py-6 text-left">Academic Identifier</th>
+                                    <th className="px-8 py-6 text-left">Student Profile</th>
+                                    <th className="px-8 py-6">Engagement</th>
+                                    <th className="px-8 py-6">Attendance Delta</th>
+                                    <th className="px-8 py-6 text-right">Status</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-gray-100/50">
                                 {reportData.map((student) => {
                                     const perc = parseFloat(student.percentage);
-                                    let statusColor = 'bg-green-100 text-green-700';
-                                    if (perc < 65) statusColor = 'bg-red-100 text-red-700';
-                                    else if (perc < 75) statusColor = 'bg-yellow-100 text-yellow-700';
+                                    let statusColor = 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                                    let statusLabel = 'GOOD';
+                                    if (perc < 65) {
+                                        statusColor = 'bg-red-50 text-red-600 border-red-100';
+                                        statusLabel = 'CRITICAL';
+                                    } else if (perc < 75) {
+                                        statusColor = 'bg-amber-50 text-amber-600 border-amber-100';
+                                        statusLabel = 'WARNING';
+                                    }
 
                                     return (
-                                        <tr key={student.id} className="border-b hover:bg-gray-50 transition-colors">
-                                            <td className="p-4 font-mono text-gray-600">{student.registerNumber}</td>
-                                            <td className="p-4 font-medium text-gray-800">{student.name}</td>
-                                            <td className="p-4 text-center text-green-600 font-bold">{student.present - (student.od || 0)}</td>
-                                            <td className="p-4 text-center text-blue-600 font-bold">{student.od || 0}</td>
-                                            <td className="p-4 text-center text-red-500 font-bold">{student.absent}</td>
-                                            <td className="p-4 text-center">
-                                                <div className="w-full bg-gray-200 rounded-full h-2.5 max-w-[100px] mx-auto mb-1">
-                                                    <div className={`h-2.5 rounded-full ${perc >= 75 ? 'bg-green-500' : perc >= 65 ? 'bg-yellow-400' : 'bg-red-500'
-                                                        }`} style={{ width: `${perc}%` }}></div>
-                                                </div>
-                                                <span className="text-xs font-bold">{student.percentage}%</span>
+                                        <tr key={student.id} className="group hover:bg-white transition-all duration-300">
+                                            <td className="px-8 py-6 text-left">
+                                                <span className="font-mono text-xs font-black text-gray-400 group-hover:text-[#003B73] transition-colors">{student.registerNumber}</span>
                                             </td>
-                                            <td className="p-4 text-center">
-                                                {perc < 75 && (
-                                                    <span className={`badge ${statusColor} flex items-center justify-center gap-1`}>
-                                                        {perc < 65 ? <AlertTriangle size={12} /> : null}
-                                                        {perc < 65 ? 'Critical' : 'Low'}
-                                                    </span>
-                                                )}
-                                                {perc >= 75 && <span className="badge bg-green-50 text-green-600">Good</span>}
+                                            <td className="px-8 py-6 text-left">
+                                                <div className="font-black text-gray-800 text-lg group-hover:text-[#003B73] transition-colors leading-tight">
+                                                    {student.name}
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <div className="w-full max-w-[120px] bg-gray-200 rounded-full h-2 mb-1 overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all duration-1000 ${perc >= 75 ? 'bg-emerald-500' : perc >= 65 ? 'bg-amber-400' : 'bg-red-500'}`}
+                                                            style={{ width: `${perc}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <span className="text-sm font-black text-[#003B73]">{student.percentage}%</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <div className="flex items-center justify-center gap-4">
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] font-black text-gray-300 uppercase tracking-tighter">Present</p>
+                                                        <p className="font-black text-emerald-600">{student.present - (student.od || 0)}</p>
+                                                    </div>
+                                                    <div className="w-px h-6 bg-gray-100"></div>
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] font-black text-gray-300 uppercase tracking-tighter">OD</p>
+                                                        <p className="font-black text-blue-600">{student.od || 0}</p>
+                                                    </div>
+                                                    <div className="w-px h-6 bg-gray-100"></div>
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] font-black text-gray-300 uppercase tracking-tighter">Absent</p>
+                                                        <p className="font-black text-red-500">{student.absent}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 text-right">
+                                                <span className={`px-4 py-2 rounded-xl text-[10px] font-black tracking-widest border ${statusColor} shadow-sm inline-flex items-center gap-2`}>
+                                                    {statusLabel === 'CRITICAL' && <AlertTriangle size={12} />}
+                                                    {statusLabel}
+                                                </span>
                                             </td>
                                         </tr>
                                     );
@@ -230,12 +329,12 @@ const AttendanceReports = () => {
                     </div>
                 </div>
             ) : (
-                <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-dashed border-gray-300">
-                    <div className="text-gray-400 mb-4">
-                        <Search size={48} className="mx-auto opacity-20" />
+                <div className="bg-white p-20 rounded-[40px] shadow-xl border border-gray-100 text-center flex flex-col items-center group">
+                    <div className="w-24 h-24 bg-gray-50 rounded-[32px] flex items-center justify-center text-gray-200 mb-8 border border-gray-50 shadow-sm group-hover:scale-110 group-hover:text-[#003B73] transition-all duration-700">
+                        <Search size={48} strokeWidth={2.5} />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-400">No Data Found</h3>
-                    <p className="text-gray-400">Select filters and click Generate to see the report.</p>
+                    <h3 className="text-2xl font-black text-gray-400 tracking-tight uppercase mb-2">Awaiting Intelligence</h3>
+                    <p className="text-gray-400 font-medium max-w-sm">Use the analytical filters above to generate institutional attendance reports.</p>
                 </div>
             )}
         </div>

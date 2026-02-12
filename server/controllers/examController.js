@@ -6,8 +6,12 @@ const pdfService = require('../services/pdfService');
 
 exports.getEndSemMarks = async (req, res) => {
     try {
-        const { department, year, semester, section, subjectId } = req.query;
+        const { department, year, semester, section, subjectId, page = 1, limit = 50 } = req.query;
+        const subIdInt = parseInt(subjectId);
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const take = parseInt(limit);
 
+        // 1. Fetch students for the criteria with pagination
         const students = await prisma.student.findMany({
             where: {
                 department,
@@ -15,15 +19,60 @@ exports.getEndSemMarks = async (req, res) => {
                 semester: parseInt(semester),
                 section
             },
+            skip,
+            take,
             include: {
                 marks: {
-                    where: { subjectId: parseInt(subjectId) },
+                    where: { subjectId: subIdInt },
                     include: { endSemMarks: true }
+                },
+                dummyMappings: {
+                    where: { subjectId: subIdInt }
                 }
             }
         });
 
-        res.json(students);
+        // 2. Fetch external marks for this subject
+        const externalMarks = await prisma.externalMark.findMany({
+            where: { subjectId: subIdInt }
+        });
+
+        const extMarksMap = {};
+        externalMarks.forEach(em => {
+            extMarksMap[em.dummyNumber] = em;
+        });
+
+        // 3. Consolidate data
+        const consolidated = students.map(student => {
+            const ciaRecord = student.marks[0] || {};
+            const dummyMapping = student.dummyMappings[0] || {};
+            const extRecord = extMarksMap[dummyMapping.dummyNumber] || {};
+
+            // Internal conversion (40%)
+            // Requirement: Only use internal marks IF they are approved by Admin
+            const internal40 = (ciaRecord.internal && ciaRecord.isApproved)
+                ? Math.round(ciaRecord.internal * 0.4)
+                : 0;
+
+            const external60 = extRecord.convertedExternal60 ? Math.round(extRecord.convertedExternal60) : 0;
+            const total100 = internal40 + external60;
+
+            return {
+                id: student.id,
+                name: student.name,
+                registerNumber: student.registerNumber,
+                internal40,
+                external60,
+                total100,
+                dummyNumber: dummyMapping.dummyNumber,
+                isLocked: ciaRecord.endSemMarks?.isLocked || false,
+                isPublished: ciaRecord.endSemMarks?.isPublished || false,
+                grade: ciaRecord.endSemMarks?.grade || 'N/A',
+                resultStatus: ciaRecord.endSemMarks?.resultStatus || 'N/A'
+            };
+        });
+
+        res.json(consolidated);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -31,121 +80,98 @@ exports.getEndSemMarks = async (req, res) => {
 
 exports.updateEndSemMarks = async (req, res) => {
     try {
-        const { marksData, subjectId, semester, regulation = '2021' } = req.body;
+        const { subjectId, semester, regulation = '2021' } = req.body;
+        const subIdInt = parseInt(subjectId);
 
-        // 1. Check if Semester is Locked
-        // We need department/year/section to check control, fetching from first student in request
-        if (marksData.length > 0) {
-            const firstStudent = await prisma.student.findUnique({ where: { id: parseInt(marksData[0].studentId) } });
-            if (firstStudent) {
-                const control = await prisma.semesterControl.findUnique({
-                    where: {
-                        department_year_semester_section: {
-                            department: firstStudent.department,
-                            year: firstStudent.year,
-                            semester: parseInt(semester),
-                            section: firstStudent.section
-                        }
-                    }
-                });
-                if (control && (control.isLocked || control.isFrozen)) {
-                    return res.status(403).json({ message: "Semester is locked or frozen. Mark entry is prohibited." });
-                }
-            }
-        }
-
-        const grades = await prisma.gradeSettings.findMany({ where: { regulation } });
-
-        for (const item of marksData) {
-            const { studentId, externalMarks } = item;
-
-            const internalRecord = await prisma.marks.findUnique({
+        // Run in transaction for atomicity
+        const resultCount = await prisma.$transaction(async (tx) => {
+            // 1. Fetch all data for this subject context
+            const students = await tx.student.findMany({
                 where: {
-                    studentId_subjectId: {
-                        studentId: parseInt(studentId),
-                        subjectId: parseInt(subjectId)
-                    }
-                }
-            });
-
-            if (!internalRecord) continue;
-
-            const totalMarks = (internalRecord.internal || 0) + (externalMarks || 0);
-
-            // Find grade based on percentage
-            const percentage = totalMarks; // Assuming total is out of 100 (Internal 40/50 + External 60/50 etc)
-            const matchedGrade = grades.find(g => percentage >= g.minPercentage && percentage <= g.maxPercentage)
-                || { grade: 'RA', resultStatus: 'FAIL' };
-
-            // Critical rule: Must have min external marks (e.g. 50% of external max)
-            let finalResultStatus = (matchedGrade.resultStatus === 'PASS' && externalMarks >= 25) ? 'PASS' : 'FAIL';
-            let finalGrade = finalResultStatus === 'PASS' ? matchedGrade.grade : 'RA';
-
-            await prisma.endSemMarks.upsert({
-                where: { marksId: internalRecord.id },
-                update: {
-                    externalMarks,
-                    totalMarks,
-                    grade: finalGrade,
-                    resultStatus: finalResultStatus
+                    marks: { some: { subjectId: subIdInt } },
+                    dummyMappings: { some: { subjectId: subIdInt } }
                 },
-                create: {
-                    marksId: internalRecord.id,
-                    externalMarks,
-                    totalMarks,
-                    grade: finalGrade,
-                    resultStatus: finalResultStatus
+                include: {
+                    marks: { where: { subjectId: subIdInt }, include: { endSemMarks: true } },
+                    dummyMappings: { where: { subjectId: subIdInt } },
+                    attendance: { where: { subjectId: subIdInt } }
                 }
             });
 
-            // Arrear logic - Store attempt history
-            if (finalResultStatus === "FAIL") {
-                const arrear = await prisma.arrear.upsert({
-                    where: {
-                        studentId_subjectId: {
-                            studentId: parseInt(studentId),
-                            subjectId: parseInt(subjectId)
-                        }
-                    },
-                    update: { isCleared: false },
-                    create: {
-                        studentId: parseInt(studentId),
-                        subjectId: parseInt(subjectId),
-                        semester: parseInt(semester),
-                        isCleared: false
-                    }
-                });
+            const externalMarks = await tx.externalMark.findMany({
+                where: { subjectId: subIdInt }
+            });
 
-                await prisma.arrearAttempt.create({
-                    data: {
-                        arrearId: arrear.id,
-                        semester: parseInt(semester),
-                        internalMarks: internalRecord.internal,
-                        externalMarks,
+            const extMarksMap = {};
+            externalMarks.forEach(em => {
+                extMarksMap[em.dummyNumber] = em;
+            });
+
+            const grades = await tx.gradeSettings.findMany({ where: { regulation } });
+
+            let count = 0;
+            for (const student of students) {
+                const ciaRecord = student.marks[0];
+                const dummyMapping = student.dummyMappings[0];
+                const extRecord = extMarksMap[dummyMapping.dummyNumber];
+
+                if (!ciaRecord || !extRecord) continue;
+
+                // 🧱 IDEMPOTENCY & LOCK CHECK
+                if (ciaRecord.endSemMarks?.isLocked || ciaRecord.endSemMarks?.isPublished) {
+                    continue; // Skip locked/published results
+                }
+
+                // 🧱 ROUNDING BIAS FIX (No intermediate rounding)
+                const internalVal = (ciaRecord.internal && ciaRecord.isApproved) ? ciaRecord.internal * 0.4 : 0;
+                const externalVal = extRecord.convertedExternal60 || 0;
+                const totalMarks = Math.round(internalVal + externalVal);
+
+                // 🧱 EXTERNAL PASS RULE (Check raw 100)
+                const isExternalPass = extRecord.rawExternal100 >= 50;
+
+                // Find grade
+                const matchedGrade = grades.find(g => totalMarks >= g.minPercentage && totalMarks <= g.maxPercentage)
+                    || { grade: 'RA', resultStatus: 'FAIL' };
+
+                let finalResultStatus = (matchedGrade.resultStatus === 'PASS' && isExternalPass) ? 'PASS' : 'FAIL';
+                let finalGrade = finalResultStatus === 'PASS' ? matchedGrade.grade : 'RA';
+
+                // 🧱 ATTENDANCE SNAPSHOT
+                // Calculate current attendance percentage
+                const totalClasses = student.attendance.length;
+                const presentCount = student.attendance.filter(a => a.status === 'PRESENT' || a.status === 'OD').length;
+                const attPercentage = totalClasses > 0 ? (presentCount / totalClasses) * 100 : 0;
+
+                await tx.endSemMarks.upsert({
+                    where: { marksId: ciaRecord.id },
+                    update: {
+                        externalMarks: extRecord.rawExternal100,
                         totalMarks,
                         grade: finalGrade,
-                        resultStatus: finalResultStatus
-                    }
-                });
-            } else {
-                await prisma.arrear.updateMany({
-                    where: {
-                        studentId: parseInt(studentId),
-                        subjectId: parseInt(subjectId)
+                        resultStatus: finalResultStatus,
+                        attendanceSnapshot: attPercentage
                     },
-                    data: {
-                        isCleared: true,
-                        clearedInSem: parseInt(semester)
+                    create: {
+                        marksId: ciaRecord.id,
+                        externalMarks: extRecord.rawExternal100,
+                        totalMarks,
+                        grade: finalGrade,
+                        resultStatus: finalResultStatus,
+                        attendanceSnapshot: attPercentage
                     }
                 });
+                count++;
             }
-        }
+            return count;
+        });
 
-        res.json({ message: "Marks updated successfully" });
+        res.json({ message: "Consolidated marks updated and grades calculated", count: resultCount });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
+
 
 // --- GPA/CGPA Engine ---
 
@@ -308,6 +334,42 @@ exports.toggleSemesterControl = async (req, res) => {
                 ...updateData
             }
         });
+
+        // 🧱 FIX ATTENDANCE SNAPSHOT ISSUE (CRITICAL)
+        if (field === 'isPublished' && value === true) {
+            const students = await prisma.student.findMany({
+                where: {
+                    department,
+                    year: parseInt(year),
+                    semester: parseInt(semester),
+                    section
+                },
+                include: {
+                    attendance: true,
+                    marks: { include: { endSemMarks: true } }
+                }
+            });
+
+            for (const student of students) {
+                for (const mark of student.marks) {
+                    if (mark.endSemMarks) {
+                        // Per-subject attendance snapshot
+                        const subAttendance = student.attendance.filter(a => a.subjectId === mark.subjectId);
+                        const total = subAttendance.length;
+                        const present = subAttendance.filter(a => a.status === 'PRESENT' || a.status === 'OD').length;
+                        const percentage = total > 0 ? (present / total) * 100 : 0;
+
+                        await prisma.endSemMarks.update({
+                            where: { id: mark.endSemMarks.id },
+                            data: {
+                                attendanceSnapshot: percentage,
+                                isPublished: true
+                            }
+                        });
+                    }
+                }
+            }
+        }
 
         res.json(control);
     } catch (error) {

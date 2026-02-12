@@ -279,6 +279,10 @@ const getAllSubjectMarksStatus = async (req, res) => {
                     approved_cia3: 0,
                     locked_cia3: 0,
 
+                    pending_internal: 0,
+                    approved_internal: 0,
+                    locked_internal: 0,
+
                     faculty: 'Loading...'
                 };
             }
@@ -295,6 +299,7 @@ const getAllSubjectMarksStatus = async (req, res) => {
             incrementStatus(mark.isLocked_cia1, mark.isApproved_cia1, 'cia1');
             incrementStatus(mark.isLocked_cia2, mark.isApproved_cia2, 'cia2');
             incrementStatus(mark.isLocked_cia3, mark.isApproved_cia3, 'cia3');
+            incrementStatus(mark.isLocked, mark.isApproved, 'internal');
         });
 
         const result = Object.values(subjectMap);
@@ -350,9 +355,10 @@ const unlockMarks = async (req, res) => {
         if (exam === 'cia1' || exam === 'all') updateData.isLocked_cia1 = false;
         if (exam === 'cia2' || exam === 'all') updateData.isLocked_cia2 = false;
         if (exam === 'cia3' || exam === 'all') updateData.isLocked_cia3 = false;
+        if (exam === 'internal' || exam === 'all') updateData.isLocked = false;
 
         // Backwards compatibility
-        if (exam === 'all') updateData.isLocked = false;
+        // if (exam === 'all') updateData.isLocked = false; // Already handled above
 
         await prisma.marks.updateMany({
             where: {
@@ -385,13 +391,15 @@ const unapproveMarks = async (req, res) => {
             updateData.isLocked_cia3 = false;
         }
 
-        // Backwards compatibility
-        if (exam === 'all') {
+        if (exam === 'internal' || exam === 'all') {
             updateData.isApproved = false;
             updateData.isLocked = false;
             updateData.approvedBy = null;
             updateData.approvedAt = null;
         }
+
+        // Backwards compatibility
+        // if (exam === 'all') { ... } // Already handled above
 
         await prisma.marks.updateMany({
             where: {
@@ -427,15 +435,23 @@ const approveMarks = async (req, res) => {
         else if (exam === 'cia3') {
             updateData.isApproved_cia3 = true;
             if (lock) updateData.isLocked_cia3 = true;
+        }
+        else if (exam === 'internal') {
+            updateData.isApproved = true;
+            updateData.approvedBy = adminId;
+            updateData.approvedAt = new Date();
+            if (lock) updateData.isLocked = true;
         } else {
             // Default 'all' or fallback legacy behavior
             updateData.isApproved_cia1 = true;
             updateData.isApproved_cia2 = true;
             updateData.isApproved_cia3 = true;
+            updateData.isApproved = true; // Final internal too? 
             if (lock) {
                 updateData.isLocked_cia1 = true;
                 updateData.isLocked_cia2 = true;
                 updateData.isLocked_cia3 = true;
+                updateData.isLocked = true;
             }
         }
 
@@ -521,17 +537,44 @@ const deleteStudent = async (req, res) => {
     try {
         const studentId = parseInt(id);
 
+        // 🧱 FIX STUDENT DELETION CASCADE RISK & SAFETY
+        // 1. Check if any results are published or locked for this student
+        const publishedResults = await prisma.endSemMarks.findFirst({
+            where: {
+                marks: { studentId },
+                OR: [
+                    { isPublished: true },
+                    { isLocked: true }
+                ]
+            }
+        });
+
+        if (publishedResults) {
+            return res.status(403).json({
+                message: 'CRITICAL: Cannot delete student with published or locked results. Academic integrity rule enforced.'
+            });
+        }
+
+        // 2. Fetch dummy numbers to clean up external marks
+        const dummyMappings = await prisma.subjectDummyMapping.findMany({
+            where: { studentId }
+        });
+        const dummyNumbers = dummyMappings.map(m => m.dummyNumber);
+
         // Use transaction for atomic deletion
         await prisma.$transaction([
-            // Delete marks
+            // Delete in correct order for relations
+            prisma.externalMark.deleteMany({ where: { dummyNumber: { in: dummyNumbers } } }),
+            prisma.endSemMarks.deleteMany({ where: { marks: { studentId } } }),
             prisma.marks.deleteMany({ where: { studentId } }),
-            // Delete attendance records
             prisma.studentAttendance.deleteMany({ where: { studentId } }),
-            // Finally delete student
+            prisma.subjectDummyMapping.deleteMany({ where: { studentId } }),
+            prisma.semesterResult.deleteMany({ where: { studentId } }),
+            prisma.arrear.deleteMany({ where: { studentId } }),
             prisma.student.delete({ where: { id: studentId } })
         ]);
 
-        res.json({ message: 'Student and related data deleted successfully' });
+        res.json({ message: 'Student and related academic records purged successfully' });
     } catch (error) {
         console.error('Delete Student Error:', error);
         res.status(500).json({ message: 'Failed to delete student', error: error.message });

@@ -30,7 +30,7 @@ const StudentPromotion = () => {
         const nextYear = Math.min(parseInt(sourceYear) + 1, 4);
         setPromoYear(nextYear.toString());
         setPromoSem((nextYear * 2 - 1).toString());
-        
+
         // Match sourceDept (which effectively uses code) to the full name for promoDept
         const matchedDept = departments.find(d => (d.code || d.name) === sourceDept);
         setPromoDept(matchedDept?.name || '');
@@ -114,43 +114,100 @@ const StudentPromotion = () => {
     );
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            {/* Header */}
-            <div className="mb-8">
-                <h2 className="text-3xl font-extrabold text-gray-900 flex items-center gap-3">
-                    <TrendingUp className="text-blue-600 w-10 h-10" />
-                    Student Promotion Portal
-                </h2>
-                <p className="text-gray-500 text-lg mt-1">Manage bulk promotions and department allocations with ease.</p>
+        <div className="flex flex-col animate-fadeIn">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 px-2">
+                <div>
+                    <h1 className="text-4xl font-black text-[#003B73] tracking-tight flex items-center gap-3">
+                        Academic Advancement
+                    </h1>
+                    <p className="text-gray-500 font-medium mt-1">Strategic promotion management and departmental cadet allocation.</p>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            {/* Global Intelligence Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 animate-fadeInUp">
+                <div className="bg-white p-8 rounded-[40px] shadow-xl border border-gray-100 flex items-center justify-between group hover:shadow-2xl transition-all duration-500">
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">Source Cadets</p>
+                        <p className="text-4xl font-black text-[#003B73]">{students.length}</p>
+                    </div>
+                    <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center text-[#003B73] group-hover:scale-110 transition-transform">
+                        <Users size={32} />
+                    </div>
+                </div>
 
-                {/* Column 1: Source (The "From") */}
-                <div className="xl:col-span-1 flex flex-col gap-6">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                        <div className="flex items-center gap-2 mb-6 text-blue-600">
-                            <Filter size={22} className="font-bold" />
-                            <h3 className="text-xl font-bold text-gray-800">1. Select Source</h3>
+                <div className="bg-white p-8 rounded-[40px] shadow-xl border border-gray-100 flex items-center justify-between group hover:shadow-2xl transition-all duration-500">
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">Selected for Advancement</p>
+                        <p className="text-4xl font-black text-amber-500">{selectedStudents.length}</p>
+                    </div>
+                    <div className="w-16 h-16 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+                        <CheckCircle size={32} />
+                    </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[40px] shadow-xl border border-gray-100 flex items-center justify-between group hover:shadow-2xl transition-all duration-500 overflow-hidden relative">
+                    <div className="relative z-10">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">Promotion Readiness</p>
+                        <p className="text-4xl font-black text-emerald-600">
+                            {students.length > 0 ? Math.round((selectedStudents.length / students.length) * 100) : 0}%
+                        </p>
+                    </div>
+                    <div className="w-16 h-16 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform relative z-10">
+                        <TrendingUp size={32} />
+                    </div>
+                    <div className="absolute right-0 bottom-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mb-16 blur-2xl"></div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 pb-20">
+                {/* Strategic Source Control */}
+                <div className="xl:col-span-1 flex flex-col gap-8">
+                    <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#003B73]/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-[#003B73]/10 transition-colors"></div>
+
+                        <div className="flex items-center gap-4 mb-10 relative z-10">
+                            <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-[#003B73] border border-gray-100 shadow-sm">
+                                <Filter size={24} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-[#003B73] tracking-tight uppercase">Base Filters</h3>
+                                <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest">Select Source Pool</p>
+                            </div>
                         </div>
 
-                        <div className="space-y-5">
+                        <div className="space-y-8 relative z-10">
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Current Year</label>
-                                <select className="input-field bg-gray-50 border-gray-200 focus:bg-white" value={sourceYear} onChange={e => setSourceYear(e.target.value)}>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-2 mb-3 block">Current Academic Year</label>
+                                <select
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-[24px] font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                    value={sourceYear}
+                                    onChange={e => setSourceYear(e.target.value)}
+                                >
                                     {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
                                 </select>
                             </div>
+
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Current Department</label>
-                                <select className="input-field bg-gray-50 border-gray-200 focus:bg-white" value={sourceDept} onChange={e => setSourceDept(e.target.value)}>
-                                    <option value="GEN">GEN</option>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-2 mb-3 block">Source Department</label>
+                                <select
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-[24px] font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                    value={sourceDept}
+                                    onChange={e => setSourceDept(e.target.value)}
+                                >
+                                    <option value="GEN">GENERAL (1st Year)</option>
                                     {departments.filter(d => d.name !== 'First Year (General)').map(d => <option key={d.id} value={d.code || d.name}>{d.code || d.name}</option>)}
                                 </select>
                             </div>
+
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Section Filter</label>
-                                <select className="input-field bg-gray-50 border-gray-200 focus:bg-white" value={sourceSection} onChange={e => setSourceSection(e.target.value)}>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-2 mb-3 block">Target Section</label>
+                                <select
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-[24px] font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                    value={sourceSection}
+                                    onChange={e => setSourceSection(e.target.value)}
+                                >
                                     <option value="All">All Sections</option>
                                     {(departments.find(d => (d.code || d.name) === ((sourceYear === '1' && (!sourceDept || sourceDept === 'GEN')) ? 'GEN' : sourceDept))?.sections?.split(',') || ['A', 'B', 'C']).map(s => (
                                         <option key={s} value={s}>Section {s}</option>
@@ -160,121 +217,130 @@ const StudentPromotion = () => {
                         </div>
                     </div>
 
-                    <div className="bg-indigo-600 p-6 rounded-2xl shadow-lg text-white">
-                        <h4 className="text-sm font-bold uppercase tracking-widest opacity-80 mb-1">Status Summary</h4>
-                        <div className="flex justify-between items-end">
+                    <div className="bg-[#003B73] p-10 rounded-[40px] shadow-2xl text-white relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-white/10 transition-colors duration-1000"></div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 mb-2 relative z-10">Advancement Status</p>
+                        <div className="flex justify-between items-end relative z-10">
                             <div>
-                                <p className="text-3xl font-black">{students.length}</p>
-                                <p className="text-xs opacity-80">Students Found</p>
+                                <p className="text-5xl font-black">{selectedStudents.length}</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mt-1">Ready for Promotion</p>
                             </div>
-                            <div className="text-right">
-                                <p className="text-3xl font-black text-yellow-300">{selectedStudents.length}</p>
-                                <p className="text-xs opacity-80">Ready to Promote</p>
+                            <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center text-white backdrop-blur-md border border-white/10">
+                                <GraduationCap size={32} />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Column 2: Student Selection (The "Who") */}
+                {/* Cadet Selection Repository */}
                 <div className="xl:col-span-2">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 h-full flex flex-col overflow-hidden">
-                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
-                            <div className="flex items-center gap-2 text-indigo-600">
-                                <Users size={22} className="font-bold" />
-                                <h3 className="text-xl font-bold text-gray-800">2. Choose Students</h3>
+                    <div className="bg-white rounded-[40px] shadow-xl border border-gray-100 h-full flex flex-col overflow-hidden relative group/table">
+                        <div className="p-10 border-b border-gray-50 flex justify-between items-center bg-gray-50/20 relative z-10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-[#003B73] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
+                                    <Users size={24} strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-[#003B73] tracking-tight uppercase">Cadet Repository</h3>
+                                    <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest">Select Advancement Candidates</p>
+                                </div>
                             </div>
                             <button
                                 onClick={handleSelectAll}
-                                className="text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-xl transition-all"
+                                className="text-[10px] font-black text-[#003B73] uppercase tracking-widest hover:bg-blue-50 px-6 py-3 rounded-2xl border border-blue-100 transition-all flex items-center gap-2 group/btn"
                             >
-                                {selectedStudents.length === filteredStudents.length ? 'Deselect All' : 'Select All Filtered'}
+                                <CheckCircle size={14} className="group-hover/btn:scale-110 transition-transform" />
+                                {selectedStudents.length === filteredStudents.length ? 'Reset All' : 'Omni Select'}
                             </button>
                         </div>
 
-                        <div className="p-4 bg-white border-b border-gray-50">
-                            <div className="relative">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <div className="p-8 bg-white border-b border-gray-50 relative z-10">
+                            <div className="relative group/search">
+                                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-[#003B73] transition-colors" size={20} />
                                 <input
                                     type="text"
-                                    placeholder="Search by name or register number..."
-                                    className="w-full pl-12 pr-4 py-3 bg-gray-100/50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    placeholder="IDENTIFY BY NAME OR REGISTER ID..."
+                                    className="w-full pl-16 pr-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-[24px] font-black text-gray-800 outline-none transition-all placeholder:text-gray-300 placeholder:font-black placeholder:text-[10px] placeholder:tracking-widest"
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
                                 />
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto max-h-[600px]">
-                            <table className="w-full text-left">
-                                <thead className="bg-white sticky top-0 z-10 shadow-sm">
-                                    <tr className="text-[11px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
-                                        <th className="p-4 w-12 text-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedStudents.length > 0 && selectedStudents.length === filteredStudents.length}
-                                                onChange={handleSelectAll}
-                                                className="w-5 h-5 rounded-lg border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                            />
+                        <div className="flex-1 overflow-y-auto max-h-[600px] px-8 pb-8 relative z-10">
+                            <table className="w-full text-center border-separate border-spacing-y-3">
+                                <thead className="bg-white sticky top-0 z-20">
+                                    <tr className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                                        <th className="px-6 py-4 w-20">
+                                            <div className="flex justify-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedStudents.length > 0 && selectedStudents.length === filteredStudents.length}
+                                                    onChange={handleSelectAll}
+                                                    className="w-6 h-6 rounded-xl border-2 border-gray-200 text-[#003B73] focus:ring-[#003B73] cursor-pointer accent-[#003B73]"
+                                                />
+                                            </div>
                                         </th>
-                                        <th className="p-4">Student</th>
-                                        <th className="p-4 text-center">Current Class</th>
-                                        <th className="p-4 text-right">Action</th>
+                                        <th className="px-6 py-4 text-left">Cadet Profile</th>
+                                        <th className="px-6 py-4">Metrics</th>
+                                        <th className="px-6 py-4 text-right">Cadence</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-50">
+                                <tbody>
                                     {loading ? (
-                                        <tr><td colSpan="4" className="p-20 text-center text-gray-400 font-bold italic animate-pulse">Scanning Database...</td></tr>
+                                        <tr><td colSpan="4" className="p-32 text-center">
+                                            <div className="w-12 h-12 border-4 border-gray-100 border-t-[#003B73] rounded-full animate-spin mx-auto mb-4"></div>
+                                            <p className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Scanning Databases...</p>
+                                        </td></tr>
                                     ) : filteredStudents.length > 0 ? (
                                         filteredStudents.map(student => (
                                             <tr
                                                 key={student.id}
-                                                className={`hover:bg-indigo-50/40 transition-all cursor-pointer group ${selectedStudents.includes(student.id) ? 'bg-indigo-50/60' : ''}`}
+                                                className={`group/row transition-all duration-300 cursor-pointer ${selectedStudents.includes(student.id) ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
                                                 onClick={() => handleSelectStudent(student.id)}
                                             >
-                                                <td className="p-4 text-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedStudents.includes(student.id)}
-                                                        onChange={() => { }}
-                                                        className="w-5 h-5 rounded-lg border-gray-300 text-indigo-600 focus:ring-indigo-500 pointer-events-none"
-                                                    />
+                                                <td className="px-6 py-6 rounded-l-[24px] border-y border-l border-transparent group-hover/row:border-gray-100">
+                                                    <div className="flex justify-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedStudents.includes(student.id)}
+                                                            onChange={() => { }}
+                                                            className="w-6 h-6 rounded-xl border-2 border-gray-200 text-[#003B73] focus:ring-[#003B73] pointer-events-none accent-[#003B73]"
+                                                        />
+                                                    </div>
                                                 </td>
-                                                <td className="p-4">
+                                                <td className="px-6 py-6 text-left border-y border-transparent group-hover/row:border-gray-100">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-sm shadow-sm group-hover:scale-110 transition-transform">
+                                                        <div className="w-12 h-12 rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-[#003B73] font-black text-sm group-hover/row:scale-110 transition-transform flex-shrink-0">
                                                             {student.name.charAt(0)}
                                                         </div>
                                                         <div>
-                                                            <p className="font-extrabold text-gray-900">{student.name}</p>
-                                                            <p className="text-xs font-mono text-gray-400 mt-0.5">{student.registerNumber}</p>
+                                                            <p className="font-black text-gray-800 group-hover/row:text-[#003B73] transition-colors">{student.name}</p>
+                                                            <p className="text-[10px] font-mono font-black text-gray-400 mt-0.5 tracking-tighter uppercase">{student.registerNumber}</p>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-4 text-center">
+                                                <td className="px-6 py-6 border-y border-transparent group-hover/row:border-gray-100">
                                                     <div className="inline-flex flex-col items-center">
-                                                        <span className="text-xs font-black text-gray-700">YEAR {student.year}</span>
-                                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">SEC {student.section}</span>
+                                                        <span className="text-[10px] font-black text-[#003B73] uppercase tracking-widest leading-none mb-1">Year {student.year}</span>
+                                                        <span className="text-[9px] bg-white border border-gray-100 text-gray-400 px-3 py-1 rounded-full font-black uppercase tracking-tighter shadow-sm">SEC {student.section}</span>
                                                     </div>
                                                 </td>
-                                                <td className="p-4 text-right">
+                                                <td className="px-6 py-6 rounded-r-[24px] text-right border-y border-r border-transparent group-hover/row:border-gray-100">
                                                     {selectedStudents.includes(student.id) ? (
-                                                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-xl text-xs font-black ring-1 ring-green-200">SELECTED</span>
+                                                        <span className="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[9px] font-black tracking-[0.1em] shadow-lg shadow-emerald-500/20 uppercase">Queued</span>
                                                     ) : (
-                                                        <ChevronRight className="inline text-gray-200 group-hover:text-indigo-300 transition-colors" size={24} />
+                                                        <ChevronRight className="inline text-gray-100 group-hover/row:text-[#003B73] transition-all transform group-hover/row:translate-x-1" size={24} />
                                                     )}
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="4" className="p-24 text-center">
-                                                <div className="max-w-xs mx-auto">
-                                                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                                        <Users className="text-gray-300" size={40} />
-                                                    </div>
-                                                    <p className="text-gray-900 text-xl font-black">Empty Class</p>
-                                                    <p className="text-sm text-gray-400 mt-2 font-medium">No students match your current source filters.</p>
-                                                </div>
+                                            <td colSpan="4" className="p-32 text-center text-gray-400 italic">
+                                                <Users size={64} className="mx-auto mb-6 text-gray-100" />
+                                                <p className="font-black text-xl text-gray-300 uppercase tracking-widest">No Cadets Found</p>
+                                                <p className="font-bold mt-2 text-xs uppercase tracking-tighter">Adjust source filters to populate pool</p>
                                             </td>
                                         </tr>
                                     )}
@@ -284,47 +350,62 @@ const StudentPromotion = () => {
                     </div>
                 </div>
 
-                {/* Column 3: Promotion Target (The "To") */}
+                {/* Tactical Advancement Config */}
                 <div className="xl:col-span-1">
-                    <div className="bg-white p-6 rounded-2xl shadow-xl border-2 border-emerald-500/20 sticky top-6">
-                        <div className="flex items-center gap-2 mb-8 text-emerald-600">
-                            <GraduationCap size={24} className="font-bold" />
-                            <h3 className="text-xl font-bold text-gray-800">3. Set Promotion</h3>
+                    <div className="bg-white p-10 rounded-[40px] shadow-2xl border border-gray-100 relative overflow-hidden group/target sticky top-8">
+                        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl group-hover/target:bg-emerald-500/10 transition-colors duration-1000"></div>
+
+                        <div className="flex items-center gap-4 mb-10 relative z-10">
+                            <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-900/20">
+                                <TrendingUp size={28} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-emerald-900 tracking-tight uppercase leading-tight">Strategic<br />Target</h3>
+                                <p className="text-emerald-600/60 font-black text-[10px] uppercase tracking-widest mt-1">Optimization</p>
+                            </div>
                         </div>
 
-                        <div className="space-y-6">
-                            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center gap-4 mb-4">
-                                <div className="bg-emerald-500 p-2 rounded-lg text-white">
-                                    <ArrowRight size={20} />
+                        <div className="space-y-8 relative z-10">
+                            <div className="bg-emerald-50/50 p-6 rounded-[32px] border border-emerald-100/50 flex items-center gap-4 mb-2">
+                                <div className="bg-emerald-600 p-2.5 rounded-xl text-white shadow-md shadow-emerald-900/20">
+                                    <ArrowRight size={20} strokeWidth={3} />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Target Path</p>
-                                    <p className="text-sm font-bold text-emerald-900">Next Academic Level</p>
+                                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] leading-none mb-1">Target Phase</p>
+                                    <p className="text-xs font-black text-emerald-900 uppercase">Operational Level</p>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Target Department</label>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-2 mb-3 block">Deployment Dept</label>
                                 <select
-                                    className="input-field border-emerald-200 focus:ring-emerald-500 p-3"
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-emerald-500 rounded-[24px] font-black text-emerald-900 outline-none transition-all appearance-none cursor-pointer shadow-sm"
                                     value={promoDept}
                                     onChange={e => setPromoDept(e.target.value)}
                                 >
-                                    <option value="">-- Select Dept --</option>
+                                    <option value="">-- SELECT SECTOR --</option>
                                     {departments.map(d => <option key={d.id} value={d.name}>{d.code || d.name}</option>)}
                                 </select>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Target Year</label>
-                                    <select className="input-field border-emerald-200" value={promoYear} onChange={e => setPromoYear(e.target.value)}>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-2 mb-3 block">Target Year</label>
+                                    <select
+                                        className="w-full px-5 py-5 bg-gray-50 border-2 border-transparent focus:border-emerald-500 rounded-[24px] font-black text-emerald-900 outline-none transition-all appearance-none cursor-pointer text-sm"
+                                        value={promoYear}
+                                        onChange={e => setPromoYear(e.target.value)}
+                                    >
                                         {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Target Section</label>
-                                    <select className="input-field border-emerald-200" value={promoSection} onChange={e => setPromoSection(e.target.value)}>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-2 mb-3 block">Target Sec</label>
+                                    <select
+                                        className="w-full px-5 py-5 bg-gray-50 border-2 border-transparent focus:border-emerald-500 rounded-[24px] font-black text-emerald-900 outline-none transition-all appearance-none cursor-pointer text-sm"
+                                        value={promoSection}
+                                        onChange={e => setPromoSection(e.target.value)}
+                                    >
                                         {(departments.find(d => d.name === ((promoYear === '1') ? 'First Year (General)' : promoDept))?.sections?.split(',') || ['A', 'B', 'C']).map(s => (
                                             <option key={s} value={s}>Section {s}</option>
                                         ))}
@@ -333,28 +414,37 @@ const StudentPromotion = () => {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Target Semester</label>
-                                <select className="input-field border-emerald-200" value={promoSem} onChange={e => setPromoSem(e.target.value)}>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-2 mb-3 block">Target Cycle (Sem)</label>
+                                <select
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-emerald-500 rounded-[24px] font-black text-emerald-900 outline-none transition-all appearance-none cursor-pointer"
+                                    value={promoSem}
+                                    onChange={e => setPromoSem(e.target.value)}
+                                >
                                     {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Semester {s}</option>)}
                                 </select>
                             </div>
 
-                            <div className="pt-6 border-t border-gray-100 mt-6">
+                            <div className="pt-10 border-t border-gray-100 mt-4 flex flex-col gap-4">
                                 <button
                                     onClick={handlePromote}
                                     disabled={selectedStudents.length === 0}
-                                    className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-lg ${selectedStudents.length === 0
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200'
+                                    className={`w-full py-6 rounded-[28px] font-black text-xs tracking-[0.2em] flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-2xl relative overflow-hidden group/submit ${selectedStudents.length === 0
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                                        : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-900/20'
                                         }`}
                                 >
-                                    <CheckCircle size={22} />
-                                    PROMOTE {selectedStudents.length || ''} STUDENTS
+                                    {selectedStudents.length > 0 && (
+                                        <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/submit:translate-x-full transition-transform duration-1000 skew-x-[45deg]"></div>
+                                    )}
+                                    <TrendingUp size={22} strokeWidth={3} className={selectedStudents.length > 0 ? 'animate-bounce' : ''} />
+                                    EXECUTE ADVANCEMENT
                                 </button>
+
                                 {selectedStudents.length === 0 && (
-                                    <p className="text-[10px] text-gray-400 mt-3 text-center flex items-center justify-center gap-1 font-bold">
-                                        <AlertCircle size={12} /> SELECT STUDENTS TO ENABLE ACTION
-                                    </p>
+                                    <div className="flex items-center justify-center gap-2 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                                        <AlertCircle size={14} className="text-amber-600" />
+                                        <p className="text-[9px] text-amber-600 font-black uppercase tracking-widest">Select Cadets to Authorize</p>
+                                    </div>
                                 )}
                             </div>
                         </div>

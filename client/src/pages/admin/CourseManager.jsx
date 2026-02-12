@@ -5,6 +5,8 @@ import { BookOpen, UserPlus, Trash2, Plus, X } from 'lucide-react';
 const CourseManager = () => {
     const [subjectList, setSubjectList] = useState([]);
     const [facultyList, setFacultyList] = useState([]);
+    const [departments, setDepartments] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     // Create Mode
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -14,8 +16,6 @@ const CourseManager = () => {
     const [selectedSubjectId, setSelectedSubjectId] = useState(null);
     const [assignFacultyId, setAssignFacultyId] = useState('');
     const [assignSection, setAssignSection] = useState('A');
-
-    const [departments, setDepartments] = useState([]);
 
     // Search & Filter State
     const [searchTerm, setSearchTerm] = useState('');
@@ -28,11 +28,14 @@ const CourseManager = () => {
     }, []);
 
     const refreshSubjects = async () => {
+        setLoading(true);
         try {
             const res = await api.get('/admin/subjects');
             setSubjectList(res.data);
         } catch (err) {
             console.error(err);
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -45,14 +48,23 @@ const CourseManager = () => {
         }
     }
 
+    const fetchDepartments = async () => {
+        try {
+            const res = await api.get('/admin/departments');
+            setDepartments(res.data);
+        } catch (err) {
+            console.error("Failed to fetch departments");
+        }
+    }
+
     const handleCreateCourse = async (e) => {
         e.preventDefault();
         try {
             await api.post('/admin/subjects', newCourse);
-            alert('Course Created Successfully');
             setShowCreateModal(false);
             setNewCourse({ code: '', name: '', department: '', semester: '', type: 'DEPARTMENT' });
             refreshSubjects();
+            alert('Course Created Successfully');
         } catch (err) {
             alert('Error creating course: ' + (err.response?.data?.message || err.message));
         }
@@ -94,17 +106,6 @@ const CourseManager = () => {
         }
     }
 
-    const fetchDepartments = async () => {
-        try {
-            const res = await api.get('/admin/departments');
-            setDepartments(res.data);
-        } catch (err) {
-            console.error("Failed to fetch departments");
-        }
-    }
-
-    // Filter Logic
-    // Filter Logic
     const filteredSubjects = (Array.isArray(subjectList) ? subjectList : []).filter(s => {
         const name = s.name ? s.name.toLowerCase() : '';
         const code = s.code ? s.code.toLowerCase() : '';
@@ -118,184 +119,242 @@ const CourseManager = () => {
     });
 
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Course & Faculty Assignment</h2>
+        <div className="flex flex-col animate-fadeIn">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+                <div>
+                    <h1 className="text-4xl font-black text-[#003B73] tracking-tight">Course Management</h1>
+                    <p className="text-gray-500 font-medium mt-1">Manage core courses and faculty distributions.</p>
+                </div>
+
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="btn btn-primary flex items-center gap-2"
+                    className="px-8 py-4 bg-[#003B73] text-white rounded-[24px] font-black hover:bg-[#002850] shadow-xl shadow-blue-900/10 transition-all flex items-center gap-2 transform active:scale-95"
                 >
-                    <Plus size={18} /> Add New Course
+                    <Plus size={22} strokeWidth={3} /> Add New Course
                 </button>
             </div>
 
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                {/* Search & Filter UI */}
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                    <h3 className="text-lg font-semibold">Course List</h3>
-                    <div className="flex gap-2 w-full sm:w-auto">
+            <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100 min-h-[650px] transition-all relative overflow-hidden">
+                {/* Search & Filter Top Bar */}
+                <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-6 relative z-10">
+                    <div className="relative w-full sm:w-96 group">
                         <input
                             type="text"
-                            placeholder="Search Course..."
-                            className="input-field text-sm py-1"
+                            placeholder="Search course code or name..."
+                            className="w-full pl-14 pr-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-[24px] font-bold text-gray-800 outline-none transition-all"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
+                        <BookOpen size={22} className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#003B73] transition-colors" />
+                    </div>
+
+                    <div className="flex gap-4 w-full sm:w-auto">
                         <select
-                            className="input-field text-sm py-1 w-32"
+                            className="px-8 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-[24px] font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer flex-1 sm:flex-none sm:min-w-[200px]"
                             value={filterDept}
                             onChange={e => setFilterDept(e.target.value)}
                         >
-                            <option value="">All Depts</option>
+                            <option value="">All Departments</option>
                             <option value="COMMON">First Year (Common)</option>
                             {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                         </select>
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 text-gray-600 text-sm">
-                            <tr>
-                                <th className="p-3">Course Code</th>
-                                <th className="p-3">Course Name</th>
-                                <th className="p-3">Dept/Sem</th>
-                                <th className="p-3">Assigned Faculty</th>
-                                <th className="p-3">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {filteredSubjects.map(sub => (
-                                <tr key={sub.id} className="hover:bg-gray-50">
-                                    <td className="p-3 font-mono text-xs">{sub.code}</td>
-                                    <td className="p-3 font-medium text-gray-800">{sub.name}</td>
-                                    <td className="p-3 text-sm text-gray-500">
-                                        {sub.type === 'COMMON' ? (
-                                            <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                                                Common (Sem {sub.semester})
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                                                {sub.department} (Sem {sub.semester})
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="p-3">
-                                        {sub.assignments?.length > 0 ? (
-                                            <div className="flex flex-col gap-2">
-                                                {sub.assignments.map((a, i) => (
-                                                    <div key={i} className="flex items-center justify-between bg-blue-50 px-2 py-1 rounded border border-blue-100 w-fit gap-3">
-                                                        <span className="text-xs font-medium text-blue-800">
-                                                            {a.facultyName} <span className="text-blue-500">(Sec {a.section})</span>
-                                                        </span>
-                                                        <button
-                                                            onClick={() => handleRemoveAssignment(a.id)}
-                                                            className="text-red-400 hover:text-red-600 transition-colors"
-                                                            title="Remove Assignment"
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : <span className="text-gray-400 text-xs italic">Unassigned</span>}
-                                    </td>
-                                    <td className="p-3 flex items-center gap-2">
-                                        <button onClick={() => setSelectedSubjectId(sub.id)} className="text-sm bg-indigo-50 text-indigo-600 px-3 py-1 rounded hover:bg-indigo-100 flex items-center gap-1">
-                                            <UserPlus size={14} /> Assign
-                                        </button>
-                                        <button onClick={() => handleDeleteCourse(sub.id)} className="text-sm bg-red-50 text-red-600 px-3 py-1 rounded hover:bg-red-100 flex items-center gap-1 ml-2">
-                                            <Trash2 size={14} /> Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {subjectList.length === 0 && (
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-48">
+                        <div className="w-12 h-12 border-4 border-gray-100 border-t-[#003B73] rounded-full animate-spin mb-4"></div>
+                        <p className="font-black text-gray-400 uppercase tracking-widest text-xs">Fetching Courses...</p>
+                    </div>
+                ) : (
+                    <div className="overflow-hidden bg-gray-50/30 rounded-3xl border border-gray-100 relative z-10">
+                        <table className="w-full text-center border-collapse">
+                            <thead className="bg-gray-100/50 text-[#003B73] text-[10px] font-black uppercase tracking-[0.2em]">
                                 <tr>
-                                    <td colSpan="5" className="p-8 text-center text-gray-500 italic">No courses created yet.</td>
+                                    <th className="px-8 py-6 text-left">Course Details</th>
+                                    <th className="px-8 py-6 text-left">Assigned Faculty</th>
+                                    <th className="px-8 py-6 text-right">Settings</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100/50">
+                                {filteredSubjects.map(sub => (
+                                    <tr key={sub.id} className="group hover:bg-white transition-all duration-300">
+                                        <td className="px-8 py-6 text-left">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-14 h-14 bg-white rounded-2xl flex flex-col items-center justify-center font-black shadow-sm border border-gray-100 group-hover:scale-110 transition-all duration-500">
+                                                    <span className="text-[#003B73] text-lg leading-none">{sub.code}</span>
+                                                </div>
+                                                <div>
+                                                    <div className="font-extrabold text-gray-800 text-lg group-hover:text-[#003B73] transition-colors">{sub.name}</div>
+                                                    <div className="flex gap-2 mt-1">
+                                                        {sub.type === 'COMMON' ? (
+                                                            <span className="px-3 py-1 bg-purple-50 text-purple-600 rounded-lg font-black text-[9px] uppercase tracking-widest border border-purple-100">
+                                                                Common • Sem {sub.semester}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-3 py-1 bg-blue-50 text-[#003B73] rounded-lg font-black text-[9px] uppercase tracking-widest border border-blue-100">
+                                                                {sub.department} • Sem {sub.semester}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-6 text-left">
+                                            {sub.assignments?.length > 0 ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {sub.assignments.map((a, i) => (
+                                                        <div key={i} className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-gray-100 shadow-sm group/tag hover:border-[#003B73] transition-all">
+                                                            <span className="text-[10px] font-black text-[#003B73] uppercase tracking-tighter">Sec {a.section}</span>
+                                                            <span className="w-1 h-3 bg-gray-200 rounded-full"></span>
+                                                            <span className="text-xs font-bold text-gray-600">{a.facultyName}</span>
+                                                            <button
+                                                                onClick={() => handleRemoveAssignment(a.id)}
+                                                                className="ml-1 text-gray-300 hover:text-red-500 transition-colors"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-gray-200"></div>
+                                                    Unassigned
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-8 py-6 text-right">
+                                            <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                                                <button
+                                                    onClick={() => setSelectedSubjectId(sub.id)}
+                                                    className="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-[#003B73] hover:text-white transition-all shadow-sm"
+                                                    title="Assign Faculty"
+                                                >
+                                                    <UserPlus size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteCourse(sub.id)}
+                                                    className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                    title="Delete Course"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {filteredSubjects.length === 0 && (
+                                    <tr>
+                                        <td colSpan="3" className="py-32 text-center text-gray-400 italic">
+                                            <BookOpen size={64} className="mx-auto mb-4 text-gray-100" />
+                                            <p className="font-black text-xl uppercase tracking-widest">No Courses Found</p>
+                                            <p className="font-bold mt-1 text-sm">Create a new course to get started.</p>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             {/* Create Course Modal */}
             {showCreateModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-                        <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-                            <BookOpen size={20} className="text-blue-600" /> Create New Course
-                        </h3>
-                        <form onSubmit={handleCreateCourse} className="space-y-4">
+                <div className="fixed inset-0 bg-[#003B73]/20 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
+                    <div className="bg-white rounded-[48px] p-10 w-full max-w-xl shadow-2xl border border-gray-100">
+                        <div className="flex justify-between items-center mb-10">
                             <div>
-                                <label className="block text-sm font-semibold mb-1">Course Code</label>
-                                <input className="input-field" placeholder="e.g. CS101" value={newCourse.code} onChange={e => setNewCourse({ ...newCourse, code: e.target.value })} required />
+                                <h3 className="text-3xl font-black text-[#003B73] tracking-tight">New Course</h3>
+                                <p className="text-gray-500 font-bold text-sm mt-1">Initialize a new academic course.</p>
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold mb-1">Course Name</label>
-                                <input className="input-field" placeholder="e.g. Data Structures" value={newCourse.name} onChange={e => setNewCourse({ ...newCourse, name: e.target.value })} required />
-                            </div>
-                            <div className="space-y-4">
+                            <button onClick={() => setShowCreateModal(false)} className="p-4 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-3xl transition-all">
+                                <X size={32} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateCourse} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-semibold mb-1">Subject Type</label>
-                                    <div className="flex gap-4">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="type"
-                                                value="DEPARTMENT"
-                                                checked={newCourse.type === 'DEPARTMENT'}
-                                                onChange={e => setNewCourse({ ...newCourse, type: e.target.value, department: '' })}
-                                            />
-                                            <span className="text-sm">Dept Specific</span>
-                                        </label>
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="type"
-                                                value="COMMON"
-                                                checked={newCourse.type === 'COMMON'}
-                                                onChange={e => setNewCourse({ ...newCourse, type: e.target.value, department: '', semester: '1' })}
-                                            />
-                                            <span className="text-sm">Common (1st Year)</span>
-                                        </label>
-                                    </div>
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Course Code</label>
+                                    <input
+                                        className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-3xl font-bold text-gray-800 outline-none transition-all font-mono"
+                                        placeholder="e.g. CS101"
+                                        value={newCourse.code}
+                                        onChange={e => setNewCourse({ ...newCourse, code: e.target.value })}
+                                        required
+                                    />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-semibold mb-1">Semester</label>
-                                        <select
-                                            className="input-field"
-                                            value={newCourse.semester}
-                                            onChange={e => setNewCourse({ ...newCourse, semester: e.target.value })}
-                                            required
-                                        >
-                                            <option value="">Select</option>
-                                            {newCourse.type === 'COMMON'
-                                                ? [1, 2].map(s => <option key={s} value={s}>Sem {s}</option>)
-                                                : [3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Sem {s}</option>)
-                                            }
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold mb-1">Department</label>
-                                        <select
-                                            className={`input-field ${newCourse.type === 'COMMON' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                            value={newCourse.type === 'COMMON' ? '' : newCourse.department}
-                                            onChange={e => setNewCourse({ ...newCourse, department: e.target.value })}
-                                            required={newCourse.type === 'DEPARTMENT'}
-                                            disabled={newCourse.type === 'COMMON'}
-                                        >
-                                            <option value="">{newCourse.type === 'COMMON' ? 'N/A' : 'Select Dept'}</option>
-                                            {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                                        </select>
-                                    </div>
+                                <div>
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Course Name</label>
+                                    <input
+                                        className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-3xl font-bold text-gray-800 outline-none transition-all"
+                                        placeholder="e.g. Data Structures"
+                                        value={newCourse.name}
+                                        onChange={e => setNewCourse({ ...newCourse, name: e.target.value })}
+                                        required
+                                    />
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                                <button type="submit" className="btn btn-primary">Create Course</button>
+
+                            <div className="p-6 bg-gray-50 rounded-[32px] border border-gray-100">
+                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-4 px-1">Category</label>
+                                <div className="flex gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewCourse({ ...newCourse, type: 'DEPARTMENT', department: '' })}
+                                        className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase transition-all ${newCourse.type === 'DEPARTMENT' ? 'bg-[#003B73] text-white shadow-lg' : 'bg-white text-gray-400 border border-gray-100'}`}
+                                    >
+                                        Dept Specific
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewCourse({ ...newCourse, type: 'COMMON', department: '', semester: '1' })}
+                                        className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase transition-all ${newCourse.type === 'COMMON' ? 'bg-purple-600 text-white shadow-lg' : 'bg-white text-gray-400 border border-gray-100'}`}
+                                    >
+                                        Common (1st Year)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Semester</label>
+                                    <select
+                                        className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-3xl font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                        value={newCourse.semester}
+                                        onChange={e => setNewCourse({ ...newCourse, semester: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Select Sem</option>
+                                        {newCourse.type === 'COMMON'
+                                            ? [1, 2].map(s => <option key={s} value={s}>Semester {s}</option>)
+                                            : [3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Semester {s}</option>)
+                                        }
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Target Department</label>
+                                    <select
+                                        className={`w-full px-6 py-5 border-2 border-transparent focus:border-[#003B73] rounded-3xl font-black outline-none transition-all appearance-none cursor-pointer ${newCourse.type === 'COMMON' ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 text-[#003B73]'}`}
+                                        value={newCourse.type === 'COMMON' ? '' : newCourse.department}
+                                        onChange={e => setNewCourse({ ...newCourse, department: e.target.value })}
+                                        required={newCourse.type === 'DEPARTMENT'}
+                                        disabled={newCourse.type === 'COMMON'}
+                                    >
+                                        <option value="">{newCourse.type === 'COMMON' ? 'N/A' : 'Select Dept'}</option>
+                                        {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4 pt-6">
+                                <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 py-5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-[24px] font-black transition-all transform active:scale-95">
+                                    Discard
+                                </button>
+                                <button type="submit" className="flex-1 py-5 bg-[#003B73] text-white rounded-[24px] font-black hover:bg-[#002850] shadow-xl shadow-blue-900/10 transition-all transform active:scale-95">
+                                    Create Course
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -304,33 +363,62 @@ const CourseManager = () => {
 
             {/* Assignment Modal */}
             {selectedSubjectId && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-                        <h3 className="text-xl font-bold mb-4 text-gray-800">Assign Faculty</h3>
-                        <form onSubmit={handleAssignFaculty}>
-                            <div className="mb-4">
-                                <label className="block text-sm font-semibold mb-2">Select Faculty</label>
-                                <select className="input-field" value={assignFacultyId} onChange={e => setAssignFacultyId(e.target.value)} required>
-                                    <option value="">-- Select Faculty --</option>
+                <div className="fixed inset-0 bg-[#003B73]/20 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
+                    <div className="bg-white rounded-[48px] p-10 w-full max-w-xl shadow-2xl border border-gray-100">
+                        <div className="flex justify-between items-center mb-10">
+                            <div>
+                                <h3 className="text-3xl font-black text-[#003B73] tracking-tight">Assign Faculty</h3>
+                                <p className="text-gray-500 font-bold text-sm mt-1">Assign teaching staff for {subjectList.find(s => s.id === selectedSubjectId)?.name}</p>
+                            </div>
+                            <button onClick={() => setSelectedSubjectId(null)} className="p-4 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-3xl transition-all">
+                                <X size={32} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleAssignFaculty} className="space-y-8">
+                            <div>
+                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Select Professor</label>
+                                <select
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-3xl font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                    value={assignFacultyId}
+                                    onChange={e => setAssignFacultyId(e.target.value)}
+                                    required
+                                >
+                                    <option value="">-- Faculty Directory --</option>
                                     {facultyList.map(f => (
                                         <option key={f.id} value={f.id}>{f.fullName} ({f.department})</option>
                                     ))}
                                 </select>
                             </div>
-                            <div className="mb-6">
-                                <label className="block text-sm font-semibold mb-2">Section</label>
-                                <select className="input-field" value={assignSection} onChange={e => setAssignSection(e.target.value)} required>
+
+                            <div className="p-6 bg-gray-50 rounded-[32px] border border-gray-100">
+                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-4 px-1">Assigned Section</label>
+                                <div className="flex flex-wrap gap-3">
                                     {(() => {
                                         const sub = subjectList.find(s => s.id === selectedSubjectId);
                                         const targetDept = sub?.type === 'COMMON' ? 'First Year (General)' : sub?.department;
-                                        const sections = departments.find(d => d.name === targetDept)?.sections?.split(',') || ['A', 'B', 'C'];
-                                        return sections.map(s => <option key={s} value={s}>{s}</option>);
+                                        const sectionList = departments.find(d => d.name === targetDept)?.sections?.split(',') || ['A', 'B', 'C', 'D'];
+                                        return sectionList.map(s => (
+                                            <button
+                                                key={s}
+                                                type="button"
+                                                onClick={() => setAssignSection(s)}
+                                                className={`w-14 h-14 rounded-2xl font-black text-lg transition-all ${assignSection === s ? 'bg-[#003B73] text-white shadow-lg scale-110' : 'bg-white text-gray-400 border border-gray-100 hover:border-[#003B73]/30'}`}
+                                            >
+                                                {s}
+                                            </button>
+                                        ));
                                     })()}
-                                </select>
+                                </div>
                             </div>
-                            <div className="flex justify-end gap-3">
-                                <button type="button" onClick={() => setSelectedSubjectId(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                                <button type="submit" className="btn btn-primary">Save Assignment</button>
+
+                            <div className="flex gap-4 pt-4">
+                                <button type="button" onClick={() => setSelectedSubjectId(null)} className="flex-1 py-5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-[24px] font-black transition-all transform active:scale-95">
+                                    Cancel
+                                </button>
+                                <button type="submit" className="flex-1 py-5 bg-[#003B73] text-white rounded-[24px] font-black hover:bg-[#002850] shadow-xl shadow-blue-900/10 transition-all transform active:scale-95">
+                                    Save Assignment
+                                </button>
                             </div>
                         </form>
                     </div>

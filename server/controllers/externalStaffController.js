@@ -1,40 +1,22 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-exports.getAssignedTasks = async (req, res) => {
+exports.getAssignedAssignments = async (req, res) => {
     try {
         const staffId = req.user.id;
-        const tasks = await prisma.externalStaffTask.findMany({
+        const assignments = await prisma.externalMarkAssignment.findMany({
             where: { staffId },
             include: { subject: true }
         });
-        res.json(tasks);
+        res.json(assignments);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-exports.submitQuestionPaper = async (req, res) => {
+exports.getAllAssignmentsForAdmin = async (req, res) => {
     try {
-        const { taskId, questionPaperUrl, remarks } = req.body;
-        const task = await prisma.externalStaffTask.update({
-            where: { id: parseInt(taskId) },
-            data: {
-                questionPaperUrl,
-                remarks,
-                status: 'SUBMITTED',
-                updatedAt: new Date()
-            }
-        });
-        res.json(task);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-exports.getAllTasksForAdmin = async (req, res) => {
-    try {
-        const tasks = await prisma.externalStaffTask.findMany({
+        const assignments = await prisma.externalMarkAssignment.findMany({
             include: {
                 subject: true,
                 staff: {
@@ -42,16 +24,16 @@ exports.getAllTasksForAdmin = async (req, res) => {
                 }
             }
         });
-        res.json(tasks);
+        res.json(assignments);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-exports.assignTask = async (req, res) => {
+exports.assignMarkEntry = async (req, res) => {
     try {
         const { staffId, subjectId, deadline } = req.body;
-        const task = await prisma.externalStaffTask.create({
+        const assignment = await prisma.externalMarkAssignment.create({
             data: {
                 staffId: parseInt(staffId),
                 subjectId: parseInt(subjectId),
@@ -59,20 +41,7 @@ exports.assignTask = async (req, res) => {
                 status: 'ASSIGNED'
             }
         });
-        res.json(task);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-exports.updateTaskStatus = async (req, res) => {
-    try {
-        const { taskId, status } = req.body;
-        const task = await prisma.externalStaffTask.update({
-            where: { id: parseInt(taskId) },
-            data: { status }
-        });
-        res.json(task);
+        res.json(assignment);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -124,22 +93,18 @@ exports.deleteExternalStaff = async (req, res) => {
     }
 };
 
-exports.deleteTask = async (req, res) => {
+exports.deleteAssignment = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log(`[EXTERNAL] Attempting to delete task: ${id}`);
-        const taskId = parseInt(id);
-        if (isNaN(taskId)) {
-            console.error(`[EXTERNAL] Invalid task ID: ${id}`);
-            return res.status(400).json({ message: "Invalid task ID" });
+        const assignmentId = parseInt(id);
+        if (isNaN(assignmentId)) {
+            return res.status(400).json({ message: "Invalid assignment ID" });
         }
-        await prisma.externalStaffTask.delete({
-            where: { id: taskId }
+        await prisma.externalMarkAssignment.delete({
+            where: { id: assignmentId }
         });
-        console.log(`[EXTERNAL] Successfully deleted task: ${id}`);
-        res.json({ message: 'Task deleted successfully' });
+        res.json({ message: 'Assignment deleted successfully' });
     } catch (error) {
-        console.error(`[EXTERNAL] Error deleting task ${req.params.id}:`, error.message);
         res.status(500).json({ message: error.message });
     }
 };

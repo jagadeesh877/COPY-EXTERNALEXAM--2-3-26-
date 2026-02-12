@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
-import { Save, Loader, X, Clock, MapPin, User, BookOpen, Plus, Edit2, Trash2, Calendar, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import {
+    Save, Loader, X, Clock, MapPin, User, BookOpen, Plus,
+    Edit2, Trash2, Calendar, AlertTriangle, CheckCircle,
+    RefreshCw, Building2, GraduationCap, Users
+} from 'lucide-react';
 
 const TimetableManager = () => {
     const [department, setDepartment] = useState('');
@@ -16,7 +20,7 @@ const TimetableManager = () => {
     const [departments, setDepartments] = useState([]);
 
     // Modal State
-    const [modalOpen, setModalOpen] = useState(false);
+    const [showModal, setShowModal] = useState(false);
     const [selectedCell, setSelectedCell] = useState(null);
     const [selectedSubject, setSelectedSubject] = useState('');
     const [selectedFaculty, setSelectedFaculty] = useState('');
@@ -81,8 +85,8 @@ const TimetableManager = () => {
 
     useEffect(() => {
         let validSems;
-        const isGeneral = department === 'First Year (General)' ||
-            departments.find(d => (d.code || d.name) === department)?.name === 'First Year (General)';
+        const departmentData = departments.find(d => (d.code || d.name) === department);
+        const isGeneral = departmentData?.name === 'First Year (General)';
 
         if (isGeneral) {
             validSems = ['1', '2'];
@@ -97,8 +101,20 @@ const TimetableManager = () => {
     }, [year, department, departments]);
 
     useEffect(() => {
-        fetchTimetable();
-    }, [department, year, semester, section]);
+        const departmentData = departments.find(d => (d.code || d.name) === department);
+        if (departmentData) {
+            const isGeneral = departmentData.name === 'First Year (General)';
+            const currentSemesterInt = parseInt(semester);
+            const isSemSpecific = isGeneral ? [1, 2].includes(currentSemesterInt) : true;
+
+            if (isSemSpecific) {
+                fetchTimetable();
+            }
+        } else {
+            // If departmentData is not found, perhaps clear timetable or handle as an invalid state
+            setTimetable({});
+        }
+    }, [department, year, semester, section, departments]); // Added departments to dependency array
 
     useEffect(() => {
         if (selectedDate) {
@@ -156,9 +172,11 @@ const TimetableManager = () => {
                 params: { department, year, semester, section }
             });
             const map = {};
-            res.data.forEach(t => {
-                map[`${t.day}-${t.period}`] = t;
-            });
+            if (Array.isArray(res.data)) {
+                res.data.forEach(t => {
+                    map[`${t.day} -${t.period} `] = t;
+                });
+            }
             setTimetable(map);
         } catch (err) {
             console.error(err);
@@ -168,7 +186,7 @@ const TimetableManager = () => {
     };
 
     const handleCellClick = (day, period) => {
-        const key = `${day}-${period}`;
+        const key = `${day} -${period} `;
         const existing = timetable[key];
 
         setSelectedCell({ day, period });
@@ -178,12 +196,12 @@ const TimetableManager = () => {
         setSelectedRoom(existing?.room || '');
         setSelectedDuration(existing?.duration || 1);
         setSubstituteId(''); // Reset substitute selection
-        setModalOpen(true);
+        setShowModal(true);
     };
 
     const handleSubjectChange = (name) => {
         setSelectedSubject(name);
-        const subj = subjects.find(s => s.name === name);
+        const subj = subjects?.find(s => s.name === name);
         if (subj) {
             const assignment = subj.assignments?.find(a => a.section === section);
             if (assignment) {
@@ -197,10 +215,10 @@ const TimetableManager = () => {
     const applyChanges = () => {
         if (!selectedCell) return;
         const { day, period } = selectedCell;
-        const key = `${day}-${period}`;
+        const key = `${day} -${period} `;
 
-        const subj = subjects.find(s => s.name === selectedSubject);
         let fId = null;
+        const subj = subjects?.find(s => s.name === selectedSubject);
         if (subj) {
             const assignment = subj.assignments?.find(a => a.section === section);
             if (assignment) fId = assignment.facultyId;
@@ -219,20 +237,20 @@ const TimetableManager = () => {
                 type: entryType
             }
         }));
-        setModalOpen(false);
+        setShowModal(false);
     };
 
     const deleteEntry = () => {
         if (!selectedCell) return;
         const { day, period } = selectedCell;
-        const key = `${day}-${period}`;
+        const key = `${day} -${period} `;
 
         setTimetable(prev => {
             const next = { ...prev };
             delete next[key];
             return next;
         });
-        setModalOpen(false);
+        setShowModal(false);
     };
 
     // --- Substitution & Absence Actions ---
@@ -246,7 +264,7 @@ const TimetableManager = () => {
                 reason: 'Marked from Timetable'
             });
             fetchDailyStatus();
-            setModalOpen(false);
+            setShowModal(false);
             alert("Faculty marked as absent.");
         } catch (err) {
             alert(err.response?.data?.message || "Failed to mark absent");
@@ -264,7 +282,7 @@ const TimetableManager = () => {
                 date: selectedDate
             });
             fetchDailyStatus();
-            setModalOpen(false);
+            setShowModal(false);
             alert("Substitute assigned successfully!");
         } catch (err) {
             alert(err.response?.data?.message || "Failed to assign substitute");
@@ -278,7 +296,7 @@ const TimetableManager = () => {
         try {
             await api.delete(`/admin/substitutions/${subId}`);
             fetchDailyStatus();
-            setModalOpen(false);
+            setShowModal(false);
         } catch (err) {
             alert(err.response?.data?.message || "Failed to remove substitution");
         }
@@ -294,7 +312,7 @@ const TimetableManager = () => {
                 }
             });
             fetchDailyStatus();
-            setModalOpen(false);
+            setShowModal(false);
             alert("Absence removed for this class.");
         } catch (err) {
             alert(err.response?.data?.message || "Failed to remove absence");
@@ -313,7 +331,7 @@ const TimetableManager = () => {
                 }
             });
             fetchDailyStatus();
-            setModalOpen(false);
+            setShowModal(false);
             alert("Absence removed for remainder of the day.");
         } catch (err) {
             alert(err.response?.data?.message || "Failed to restore presence");
@@ -322,7 +340,7 @@ const TimetableManager = () => {
 
     const renderStatusSection = () => {
         if (!selectedCell) return null;
-        const key = `${selectedCell.day}-${selectedCell.period}`;
+        const key = `${selectedCell.day} -${selectedCell.period} `;
         if (!timetable[key]) return null;
 
         const entry = timetable[key];
@@ -333,99 +351,123 @@ const TimetableManager = () => {
         const subEntry = substitutions.find(s => s.timetableId === entry.id);
 
         return (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Calendar size={18} className="text-indigo-600" />
-                    Daily Status & Substitution ({selectedDate})
-                </h4>
+            <div className="mt-10 pt-10 border-t-2 border-dashed border-gray-100 animate-fadeIn">
+                <div className="flex items-center justify-between mb-8 group">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#003B73]/5 rounded-2xl text-[#003B73] transition-transform group-hover:rotate-12">
+                            <RefreshCw size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-black text-[#003B73] tracking-tight uppercase leading-none">Intelligence Engine</h4>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Substitution & Faculty Availability</p>
+                        </div>
+                    </div>
+                </div>
 
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Faculty Status:</span>
-                        {isAbsent ? (
-                            <div className="flex flex-col items-end">
-                                <span className="badge bg-red-100 text-red-700 flex items-center gap-1">
-                                    <AlertTriangle size={14} /> Absent
-                                </span>
-                            </div>
-                        ) : (
-                            <span className="badge bg-green-100 text-green-700 flex items-center gap-1">
-                                <CheckCircle size={14} /> Present
-                            </span>
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between p-6 bg-gray-50 rounded-[32px] border border-gray-100 group">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">Current Presence</span>
+                            {isAbsent ? (
+                                <div className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl border border-red-100 transition-all group-hover:scale-105">
+                                    <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div>
+                                    <span className="text-xs font-black uppercase tracking-widest">Marked Absent</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 transition-all group-hover:scale-105">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></div>
+                                    <span className="text-xs font-black uppercase tracking-widest">Duty Bound</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {!isAbsent && (
+                            <button
+                                onClick={() => handleMarkAbsent(entry.facultyId)}
+                                className="px-6 py-4 bg-white text-red-600 rounded-2xl font-bold text-xs uppercase tracking-widest border border-red-100 hover:bg-red-600 hover:text-white transition-all shadow-sm transform active:scale-95"
+                            >
+                                Notify Absence
+                            </button>
                         )}
                     </div>
 
-                    {!isAbsent && (
-                        <button
-                            onClick={() => handleMarkAbsent(entry.facultyId)}
-                            className="w-full btn border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
-                        >
-                            <AlertTriangle size={16} />
-                            Mark Faculty as Absent Today
-                        </button>
-                    )}
-
                     {isAbsent && (
-                        <>
-                            <div className="flex flex-col gap-2">
-                                <div className="flex gap-2">
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="p-6 bg-[#003B73]/5 rounded-[32px] border border-[#003B73]/10">
+                                <label className="block text-[10px] font-black text-[#003B73] uppercase tracking-widest mb-4 px-1">Restoration Protocols</label>
+                                <div className="flex gap-4">
                                     <button
                                         onClick={() => handleRemoveAbsence(entry.facultyId)}
-                                        className="flex-1 btn bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 text-xs"
+                                        className="flex-1 py-4 bg-white text-emerald-600 border border-emerald-100 rounded-2xl font-black text-xs uppercase transition-all hover:bg-emerald-600 hover:text-white shadow-sm transform active:scale-95"
                                     >
-                                        Restore This Class Only
+                                        Single Class
                                     </button>
                                     <button
                                         onClick={() => handleRestoreRemainder(entry.facultyId)}
-                                        className="flex-1 btn bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 text-xs"
+                                        className="flex-1 py-4 bg-[#003B73] text-white rounded-2xl font-black text-xs uppercase transition-all hover:bg-[#002850] shadow-lg shadow-blue-900/10 transform active:scale-95"
                                     >
-                                        Restore Remainder of Day
+                                        Rest of Day
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-                                <h5 className="font-semibold text-yellow-800 mb-2">Substitution</h5>
+                            <div className="p-8 bg-amber-50 rounded-[40px] border-2 border-amber-200 shadow-xl shadow-amber-900/5 relative overflow-hidden group">
+                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-200/20 rounded-full blur-2xl group-hover:bg-amber-200/40 transition-all"></div>
 
-                                {subEntry ? (
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-yellow-900 font-medium">Assigned To:</p>
-                                            <p className="font-bold text-yellow-800">{subEntry.substituteFaculty?.fullName}</p>
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="p-2 bg-amber-200 text-amber-800 rounded-xl">
+                                            <Edit2 size={20} />
                                         </div>
-                                        <button
-                                            onClick={() => handleRemoveSubstitution(subEntry.id)}
-                                            className="text-red-500 hover:text-red-700 p-2"
-                                            title="Remove Substitution"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <h5 className="font-black text-amber-900 uppercase tracking-widest text-sm">Substitution Channel</h5>
                                     </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <select
-                                            className="input-field w-full text-sm"
-                                            value={substituteId}
-                                            onChange={e => setSubstituteId(e.target.value)}
-                                        >
-                                            <option value="">-- Select Substitute --</option>
-                                            {facultyList
-                                                .filter(f => f.id !== entry.facultyId) // Exclude current faculty
-                                                .map(f => (
-                                                    <option key={f.id} value={f.id}>{f.fullName} ({f.department})</option>
-                                                ))}
-                                        </select>
-                                        <button
-                                            onClick={() => handleAssignSubstitute(entry.id)}
-                                            disabled={assigningSub || !substituteId}
-                                            className="btn btn-primary w-full text-sm"
-                                        >
-                                            {assigningSub ? 'Assigning...' : 'Assign Substitute'}
-                                        </button>
-                                    </div>
-                                )}
+
+                                    {subEntry ? (
+                                        <div className="flex items-center justify-between bg-white/60 p-5 rounded-3xl border border-amber-200/50 backdrop-blur-sm">
+                                            <div>
+                                                <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest leading-none mb-1">Acting Faculty</p>
+                                                <p className="text-lg font-black text-amber-900 leading-tight">{subEntry.substituteFaculty?.fullName}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleRemoveSubstitution(subEntry.id)}
+                                                className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                title="Revoke Substitution"
+                                            >
+                                                <Trash2 size={20} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="relative group">
+                                                <select
+                                                    className="w-full px-6 py-5 bg-white border-2 border-transparent focus:border-amber-500 rounded-3xl font-black text-amber-900 outline-none transition-all appearance-none cursor-pointer shadow-sm"
+                                                    value={substituteId}
+                                                    onChange={e => setSubstituteId(e.target.value)}
+                                                >
+                                                    <option value="">-- Available Substitutes --</option>
+                                                    {(Array.isArray(facultyList) ? facultyList : [])
+                                                        .filter(f => f.id !== entry.facultyId)
+                                                        .map(f => (
+                                                            <option key={f.id} value={f.id}>{f.fullName} • {f.department}</option>
+                                                        ))}
+                                                </select>
+                                                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-amber-400 group-focus-within:text-amber-600">
+                                                    <User size={18} />
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleAssignSubstitute(entry.id)}
+                                                disabled={assigningSub || !substituteId}
+                                                className="w-full py-5 bg-amber-600 text-white rounded-3xl font-black uppercase tracking-widest text-xs hover:bg-amber-700 shadow-xl shadow-amber-900/10 transition-all flex items-center justify-center gap-3 transform active:scale-95 disabled:opacity-50"
+                                            >
+                                                {assigningSub ? <RefreshCw size={20} className="animate-spin" /> : <Save size={20} />}
+                                                {assigningSub ? 'Processing...' : 'Confirm Substitution'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>
@@ -481,153 +523,206 @@ const TimetableManager = () => {
     });
 
     return (
-        <div className="min-h-screen bg-[#F5F7FA] p-6">
-            <div className="mb-8 animate-fadeIn">
-                <h1 className="text-3xl font-black text-[#003B73] mb-2 tracking-tight">
-                    Timetable Manager
-                </h1>
-                <p className="text-gray-500 font-medium">Create and manage class schedules</p>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-6 animate-fadeIn delay-100">
-                <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-end mb-4 border-b border-gray-100 pb-4">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                            <Calendar size={18} className="text-[#003B73]" />
-                            Select Date
-                        </label>
+        <div className="flex flex-col animate-fadeIn">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 px-2">
+                <div>
+                    <h1 className="text-4xl font-black text-[#003B73] tracking-tight">Timetable Management</h1>
+                    <p className="text-gray-500 font-medium mt-1">Design academic schedules and manage daily faculty substitutions.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="hidden lg:flex items-center gap-2 px-6 py-4 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                        <Calendar size={20} className="text-[#003B73]" />
                         <input
                             type="date"
-                            className="input-field font-semibold text-gray-700"
+                            className="bg-transparent border-none outline-none font-bold text-gray-700 text-sm cursor-pointer"
                             value={selectedDate}
                             onChange={(e) => setSelectedDate(e.target.value)}
                         />
-                        <p className="text-xs text-gray-500 mt-2 font-medium">
-                            Viewing schedule for: <span className="font-bold text-[#003B73]">{getDayName(selectedDate)}</span>
-                        </p>
                     </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={fetchDailyStatus}
-                            className="p-2.5 rounded-xl bg-gray-100 text-gray-600 hover:bg-[#003B73] hover:text-white transition-all shadow-sm"
-                            title="Refresh Status"
-                        >
-                            <RefreshCw size={20} className={statusLoading ? 'animate-spin' : ''} />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Department</label>
-                        <select
-                            className="input-field w-full font-semibold"
-                            value={department}
-                            onChange={e => setDepartment(e.target.value)}
-                        >
-                            {departments.map(d =>
-                                <option key={d.id} value={d.code || d.name}>{d.code || d.name}</option>
-                            )}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Year</label>
-                        <select
-                            className="input-field w-full font-semibold"
-                            value={year}
-                            onChange={e => setYear(e.target.value)}
-                        >
-                            {(departments.find(d => (d.code || d.name) === department)?.years?.split(',') || ['1', '2', '3', '4']).map(y =>
-                                <option key={y} value={y}>{y} Year</option>
-                            )}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Semester</label>
-                        <select
-                            className="input-field w-full font-semibold"
-                            value={semester}
-                            onChange={e => setSemester(e.target.value)}
-                        >
-                            {(department === 'First Year (General)' || currentDept?.name === 'First Year (General)'
-                                ? ['1', '2']
-                                : [(parseInt(year) * 2 - 1).toString(), (parseInt(year) * 2).toString()]
-                            ).map(s =>
-                                <option key={s} value={s}>Sem {s}</option>
-                            )}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Section</label>
-                        <select
-                            className="input-field w-full font-semibold"
-                            value={section}
-                            onChange={e => setSection(e.target.value)}
-                        >
-                            {(departments.find(d => (d.code || d.name) === department)?.sections?.split(',') || ['A', 'B', 'C']).map(s =>
-                                <option key={s} value={s}>{s}</option>
-                            )}
-                        </select>
-                    </div>
-                    <div className="flex items-end">
-                        <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="w-full bg-[#003B73] hover:bg-[#002850] text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-lg"
-                        >
-                            {saving ? <Loader className="animate-spin" size={20} /> : <Save size={20} />}
-                            Save
-                        </button>
-                    </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="px-10 py-5 bg-[#003B73] text-white rounded-[24px] font-black hover:bg-[#002850] shadow-xl shadow-blue-900/10 transition-all flex items-center gap-3 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group"
+                    >
+                        {saving ? (
+                            <RefreshCw size={22} className="animate-spin" />
+                        ) : (
+                            <Save size={22} strokeWidth={3} className="group-hover:scale-110 transition-transform" />
+                        )}
+                        {saving ? 'Saving...' : 'Publish Schedule'}
+                    </button>
                 </div>
             </div>
 
-            {/* Timetable Grid */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-fadeIn delay-200">
-                <div className="p-6 bg-[#003B73] text-white flex justify-between items-center">
-                    <div>
-                        <h2 className="text-xl font-bold">
-                            {department} - Year {year} - Section {section}
-                        </h2>
-                        <p className="text-blue-200 text-sm mt-1 font-medium">Click any cell to manage schedule</p>
+            {/* Filter Dashboard */}
+            <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100 mb-10 relative overflow-hidden transition-all duration-700 hover:shadow-2xl">
+                {/* Visual Accent */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#003B73]/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+
+                <div className="flex flex-col lg:flex-row items-end gap-8 relative z-10">
+                    <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Department</label>
+                            <div className="relative group">
+                                <select
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-2xl font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                    value={department}
+                                    onChange={e => setDepartment(e.target.value)}
+                                >
+                                    {departments.map(d =>
+                                        <option key={d.id} value={d.code || d.name}>{d.code || d.name}</option>
+                                    )}
+                                </select>
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#003B73] opacity-40 group-hover:opacity-100 transition-opacity">
+                                    <Building2 size={18} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Academic Year</label>
+                            <div className="relative group">
+                                <select
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-2xl font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                    value={year}
+                                    onChange={e => setYear(e.target.value)}
+                                >
+                                    {(departments.find(d => (d.code || d.name) === department)?.years?.split(',') || ['1', '2', '3', '4']).map(y =>
+                                        <option key={y} value={y}>{y}{y === '1' ? 'st' : y === '2' ? 'nd' : y === '3' ? 'rd' : 'th'} Year</option>
+                                    )}
+                                </select>
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#003B73] opacity-40 group-hover:opacity-100 transition-opacity">
+                                    <GraduationCap size={18} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Semester</label>
+                            <div className="relative group">
+                                <select
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-2xl font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                    value={semester}
+                                    onChange={e => setSemester(e.target.value)}
+                                >
+                                    {(department === 'First Year (General)' || currentDept?.name === 'First Year (General)'
+                                        ? ['1', '2']
+                                        : [(parseInt(year) * 2 - 1).toString(), (parseInt(year) * 2).toString()]
+                                    ).map(s =>
+                                        <option key={s} value={s}>Semester {s}</option>
+                                    )}
+                                </select>
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#003B73] opacity-40 group-hover:opacity-100 transition-opacity">
+                                    <BookOpen size={18} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Section</label>
+                            <div className="relative group">
+                                <select
+                                    className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-2xl font-black text-[#003B73] outline-none transition-all appearance-none cursor-pointer"
+                                    value={section}
+                                    onChange={e => setSection(e.target.value)}
+                                >
+                                    {(departments.find(d => (d.code || d.name) === department)?.sections?.split(',') || ['A', 'B', 'C']).map(s =>
+                                        <option key={s} value={s}>Section {s}</option>
+                                    )}
+                                </select>
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#003B73] opacity-40 group-hover:opacity-100 transition-opacity">
+                                    <Users size={18} />
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div className="bg-white/10 p-2 rounded-lg">
-                        <Clock className="text-white" size={24} />
+
+                    <div className="flex gap-4">
+                        <div className="lg:hidden w-full">
+                            <input
+                                type="date"
+                                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-[#003B73] outline-none transition-all"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                            />
+                        </div>
+                        <button
+                            onClick={fetchDailyStatus}
+                            className="p-5 bg-blue-50 text-[#003B73] rounded-2xl hover:bg-[#003B73] hover:text-white transition-all shadow-sm border border-blue-100"
+                            title="Sync Substitution Data"
+                        >
+                            <RefreshCw size={24} className={statusLoading ? 'animate-spin' : 'hover:rotate-180 transition-transform duration-700'} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mt-8 flex items-center justify-between px-2 py-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/20"></div>
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Status: Linked to Cloud</span>
+                        </div>
+                        <div className="flex items-center gap-2 border-l border-gray-200 pl-6">
+                            <Clock size={14} className="text-gray-400" />
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Week: Odd Cycle</span>
+                        </div>
+                    </div>
+                    <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Selected Date: {new Date(selectedDate).toLocaleDateString()}</p>
+                </div>
+            </div>
+
+            {/* Timetable Grid Container */}
+            <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100 min-h-[600px] transition-all relative overflow-hidden group/grid">
+                {/* Decorative Elements */}
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-[#003B73]/5 rounded-full blur-3xl group-hover/grid:bg-[#003B73]/10 transition-colors duration-1000"></div>
+
+                <div className="flex justify-between items-center mb-10 relative z-10">
+                    <div className="flex items-center gap-5">
+                        <div className="w-16 h-16 bg-[#003B73] rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/20 text-white">
+                            <Clock size={32} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-[#003B73] tracking-tight uppercase">
+                                {department} <span className="text-gray-300 mx-2">/</span> Y{year} {section}
+                            </h2>
+                            <p className="text-gray-400 font-bold text-xs uppercase tracking-widest mt-1">
+                                Interactive Scheduling Grid • {semester ? `Semester ${semester} ` : 'Cycle Unset'}
+                            </p>
+                        </div>
                     </div>
                 </div>
 
                 {loading ? (
-                    <div className="flex items-center justify-center p-20">
-                        <Loader className="animate-spin text-indigo-600" size={48} />
+                    <div className="flex flex-col items-center justify-center py-40">
+                        <div className="w-16 h-16 border-4 border-gray-100 border-t-[#003B73] rounded-full animate-spin mb-6"></div>
+                        <p className="font-black text-gray-400 uppercase tracking-widest text-xs animate-pulse">Syncing Schedule...</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="bg-gray-50 border-b-2 border-gray-200">
-                                    <th className="p-4 text-left font-bold text-gray-700 w-32">Day</th>
+                    <div className="overflow-hidden bg-gray-50/30 rounded-3xl border border-gray-100 relative z-10">
+                        <table className="w-full text-center border-collapse">
+                            <thead className="bg-gray-100/50 text-[#003B73] text-[10px] font-black uppercase tracking-[0.2em]">
+                                <tr>
+                                    <th className="px-8 py-8 text-left border-r border-gray-200/50 bg-gray-100/30 w-40">Timeline</th>
                                     {periods.map(p => (
-                                        <th key={p.id} className="p-4 text-center min-w-[160px]">
-                                            <div className="font-bold text-gray-800">{p.name}</div>
-                                            <div className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
-                                                <Clock size={12} />
-                                                {p.label}
+                                        <th key={p.id} className="px-6 py-8 border-b border-gray-100 min-w-[180px]">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <span className="text-[12px]">{p.name}</span>
+                                                <span className="text-[10px] text-gray-400 font-bold opacity-60 flex items-center gap-1">
+                                                    <Clock size={10} strokeWidth={3} /> {p.label}
+                                                </span>
                                             </div>
                                         </th>
                                     ))}
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-gray-100">
                                 {days.map((day, dayIdx) => {
-                                    // Track which periods are occupied by multi-period entries
                                     const occupiedPeriods = new Set();
-
-                                    // First pass: identify occupied periods
                                     periods.forEach(p => {
-                                        const key = `${day}-${p.id}`;
+                                        const key = `${day} -${p.id} `;
                                         const entry = timetable[key];
                                         if (entry && entry.duration > 1) {
-                                            // Mark subsequent periods as occupied
                                             for (let i = 1; i < entry.duration; i++) {
                                                 occupiedPeriods.add(p.id + i);
                                             }
@@ -635,29 +730,17 @@ const TimetableManager = () => {
                                     });
 
                                     return (
-                                        <tr key={day} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                                            <td className="p-4 font-bold text-gray-700 bg-gray-50">
+                                        <tr key={day} className="group/row hover:bg-white transition-colors">
+                                            <td className="px-8 py-10 text-left font-black text-[#003B73] bg-gray-100/20 border-r border-gray-200/50 uppercase tracking-widest text-sm">
                                                 {day}
                                             </td>
                                             {periods.map(p => {
-                                                // Skip this cell if it's occupied by a previous multi-period entry
-                                                if (occupiedPeriods.has(p.id)) {
-                                                    return null;
-                                                }
+                                                if (occupiedPeriods.has(p.id)) return null;
 
-                                                // Determine day name for current date
-                                                // Note: days array is ['MON', 'TUE'...]
-                                                // getDayName returns 3 chars e.g. 'MON'
-                                                // Ensure simple comparison works
-
-
-                                                const key = `${day}-${p.id}`;
+                                                const key = `${day} -${p.id} `;
                                                 const entry = timetable[key];
                                                 const colspan = entry?.duration || 1;
-
-                                                // Check Status logic
                                                 const isToday = getDayName(selectedDate) === day.toUpperCase().slice(0, 3);
-                                                // Check for specific period absence or full day (period 0)
                                                 const isAbsent = entry?.facultyId && absences.some(a =>
                                                     a.facultyId === entry.facultyId && (a.period === 0 || a.period === p.id)
                                                 );
@@ -668,65 +751,58 @@ const TimetableManager = () => {
                                                         key={p.id}
                                                         colSpan={colspan}
                                                         onClick={() => handleCellClick(day, p.id)}
-                                                        className={`p-2 cursor-pointer group relative ${isToday ? 'bg-indigo-50/30' : ''}`}
+                                                        className={`p-2 cursor-pointer group/cell relative transition-all duration-300 ${isToday ? 'bg-[#003B73]/[0.02]' : ''}`}
                                                     >
                                                         {entry ? (
-
-                                                            <div className={`p-3 rounded-lg transition-all h-24 flex flex-col justify-between ${subEntry
-                                                                ? 'bg-yellow-50 border-2 border-yellow-400'
+                                                            <div className={`p-4 rounded-[24px] min-h-[140px] flex flex-col justify-between transition-all duration-500 shadow-sm border-2 ${subEntry
+                                                                ? 'bg-amber-50 border-amber-200 shadow-amber-900/5 translate-y-[-2px]'
                                                                 : isToday && isAbsent
-                                                                    ? 'bg-red-50 border-2 border-red-400'
+                                                                    ? 'bg-red-50 border-red-200 shadow-red-900/5'
                                                                     : entry.type === 'LAB'
-                                                                        ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 hover:border-blue-400'
-                                                                        : 'bg-white border-2 border-gray-200 hover:border-indigo-400'
+                                                                        ? 'bg-blue-50/50 border-blue-200'
+                                                                        : 'bg-white border-gray-100 group-hover/cell:border-[#003B73]/30 group-hover/cell:shadow-lg group-hover/cell:translate-y-[-4px]'
                                                                 }`}>
                                                                 <div>
-                                                                    <div className="flex items-start justify-between gap-2">
-                                                                        <span className="font-semibold text-gray-800 text-sm leading-tight">
-                                                                            {entry.subjectName || 'Untitled'}
+                                                                    <div className="flex items-start justify-between mb-2">
+                                                                        <span className={`text-[12px] font-black leading-tight ${subEntry ? 'text-amber-800' : isToday && isAbsent ? 'text-red-800' : 'text-[#003B73]'}`}>
+                                                                            {entry.subjectName}
                                                                         </span>
-                                                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${entry.type === 'LAB'
-                                                                            ? 'bg-blue-100 text-blue-700'
-                                                                            : 'bg-gray-100 text-gray-700'
+                                                                        <span className={`text-[8px] px-2 py-0.5 rounded-lg font-black uppercase tracking-widest flex-shrink-0 ${entry.type === 'LAB'
+                                                                            ? 'bg-blue-600 text-white'
+                                                                            : subEntry ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-400'
                                                                             }`}>
-                                                                            {entry.type || 'THEORY'}
+                                                                            {entry.type}
                                                                         </span>
                                                                     </div>
-                                                                    <div className="text-xs text-gray-600 mt-1 flex items-center gap-1">
-                                                                        <User size={12} />
-                                                                        {subEntry ? (
-                                                                            <span className="font-bold text-yellow-700 flex items-center gap-1">
-                                                                                <RefreshCw size={10} />
-                                                                                {subEntry.substituteFaculty?.fullName || 'Sub'}
-                                                                            </span>
-                                                                        ) : isToday && isAbsent ? (
-                                                                            <span className="font-bold text-red-600 flex items-center gap-1">
-                                                                                <AlertTriangle size={10} />
-                                                                                ABSENT
-                                                                            </span>
-                                                                        ) : (
-                                                                            entry.facultyName || 'TBA'
-                                                                        )}
-                                                                    </div>
-                                                                    {entry.room && (
-                                                                        <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                                                            <MapPin size={12} />
-                                                                            {entry.room}
+                                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                                        <div className={`p-0.5 rounded-md ${subEntry ? 'bg-amber-200/50' : 'bg-gray-100'}`}>
+                                                                            <User size={10} className={subEntry ? 'text-amber-700' : 'text-gray-400'} />
                                                                         </div>
-                                                                    )}
-                                                                    {entry.duration && entry.duration > 1 && (
-                                                                        <div className="text-xs text-indigo-600 mt-1 flex items-center gap-1 font-medium">
-                                                                            <Clock size={12} />
-                                                                            Period {p.id}-{p.id + entry.duration - 1}
+                                                                        <span className={`text-[10px] font-bold truncate ${subEntry ? 'text-amber-700 underline decoration-amber-300 decoration-2 underline-offset-2' : isToday && isAbsent ? 'text-red-500 line-through' : 'text-gray-500'}`}>
+                                                                            {subEntry ? subEntry.substituteFaculty?.fullName : entry.facultyName || 'Unassigned'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-100/50">
+                                                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                                                        <MapPin size={10} className="text-gray-300 shrink-0" />
+                                                                        <span className="text-[9px] font-black text-gray-400 truncate uppercase tracking-tighter">{entry.room || 'L-BLOCK'}</span>
+                                                                    </div>
+                                                                    {colspan > 1 && (
+                                                                        <div className="flex items-center gap-1.5 bg-[#003B73]/5 px-2 py-0.5 rounded-md">
+                                                                            <Clock size={8} className="text-[#003B73]" />
+                                                                            <span className="text-[9px] font-black text-[#003B73]">P{p.id}-{p.id + colspan - 1}</span>
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <div className="h-24 rounded-lg border-2 border-dashed border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all flex items-center justify-center group">
-                                                                <div className="text-gray-400 group-hover:text-indigo-600 transition-colors">
-                                                                    <Plus size={24} className="opacity-50 group-hover:opacity-100" />
+                                                            <div className="h-[140px] rounded-[24px] border-2 border-dashed border-gray-100 hover:border-[#003B73]/30 hover:bg-gray-50 transition-all flex flex-col items-center justify-center group/empty overflow-hidden relative">
+                                                                <div className="p-3 bg-white rounded-2xl shadow-sm border border-gray-50 text-gray-200 group-hover/empty:scale-110 group-hover/empty:text-[#003B73] transition-all duration-500">
+                                                                    <Plus size={20} strokeWidth={3} />
                                                                 </div>
+                                                                <span className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em] mt-3 opacity-0 group-hover/empty:opacity-100 transition-opacity">Assign Class</span>
                                                             </div>
                                                         )}
                                                     </td>
@@ -741,149 +817,153 @@ const TimetableManager = () => {
                 )}
             </div>
 
-            {/* Assignment Modal */}
-            {modalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fadeIn">
-                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg transform scale-100 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-6">
-                            <div>
-                                <h3 className="text-2xl font-bold text-gray-800">Assign Class</h3>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    {selectedCell?.day} - Period {selectedCell?.period}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    setModalOpen(false);
-                                    setSubstituteId('');
-                                }}
-                                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <X size={24} />
-                            </button>
-                        </div>
-
-                        {/* Type Toggle */}
-                        <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
-                            <button
-                                className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${entryType === 'THEORY'
-                                    ? 'bg-white shadow-md text-indigo-600'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                                onClick={() => setEntryType('THEORY')}
-                            >
-                                📚 Theory Class
-                            </button>
-                            <button
-                                className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${entryType === 'LAB'
-                                    ? 'bg-white shadow-md text-indigo-600'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                                onClick={() => setEntryType('LAB')}
-                            >
-                                🔬 Lab Session
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    <BookOpen size={16} />
-                                    Subject
-                                </label>
-                                <select
-                                    className="input-field w-full"
-                                    value={selectedSubject}
-                                    onChange={e => handleSubjectChange(e.target.value)}
-                                >
-                                    <option value="">-- Select Subject --</option>
-                                    {availableSubjects.map(s => (
-                                        <option key={s.id} value={s.name}>
-                                            {s.shortName ? `${s.shortName} - ${s.name}` : s.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    <User size={16} />
-                                    Faculty
-                                </label>
-                                <input
-                                    className="input-field w-full bg-gray-50"
-                                    value={selectedFaculty}
-                                    readOnly
-                                    placeholder="Auto-assigned based on subject"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Faculty is automatically assigned based on subject selection
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    <MapPin size={16} />
-                                    Room
-                                </label>
-                                <input
-                                    type="text"
-                                    className="input-field w-full"
-                                    placeholder="e.g., Lab-301, Room-205"
-                                    value={selectedRoom}
-                                    onChange={e => setSelectedRoom(e.target.value)}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    <Clock size={16} />
-                                    Duration (Periods)
-                                </label>
-                                <select
-                                    className="input-field w-full"
-                                    value={selectedDuration}
-                                    onChange={e => setSelectedDuration(parseInt(e.target.value))}
-                                >
-                                    <option value={1}>1 Period (Regular Class)</option>
-                                    <option value={2}>2 Periods (Lab)</option>
-                                    <option value={3}>3 Periods (Extended Lab)</option>
-                                </select>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    {selectedDuration > 1 && `This will occupy periods ${selectedCell?.period} to ${selectedCell?.period + selectedDuration - 1}`}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-8">
-                            {timetable[`${selectedCell?.day}-${selectedCell?.period}`] && (
+            {/* Assignment & Management Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-[#003B73]/20 backdrop-blur-md flex items-center justify-center p-6 z-[100] animate-fadeIn">
+                    <div className="bg-white rounded-[48px] w-full max-w-2xl shadow-2xl border border-gray-100 overflow-hidden transform animate-modalEnter">
+                        <div className="bg-white p-10 pb-4">
+                            <div className="flex justify-between items-start mb-8">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-[#003B73] border border-gray-100 shadow-sm">
+                                        <Calendar size={32} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-3xl font-black text-[#003B73] tracking-tight lowercase">
+                                            Assigning Class <span className="text-gray-300">/</span> {selectedCell?.day}
+                                        </h3>
+                                        <p className="text-gray-400 font-bold text-xs uppercase tracking-widest mt-1">
+                                            Period {selectedCell?.period} • Schedule Configuration
+                                        </p>
+                                    </div>
+                                </div>
                                 <button
-                                    onClick={deleteEntry}
-                                    className="btn bg-red-50 hover:bg-red-100 text-red-600 border-2 border-red-200 flex items-center gap-2"
+                                    onClick={() => {
+                                        setShowModal(false);
+                                        setSubstituteId('');
+                                    }}
+                                    className="p-4 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-3xl transition-all group"
                                 >
-                                    <Trash2 size={16} />
-                                    Delete
+                                    <X size={32} className="group-hover:rotate-90 transition-transform duration-500" />
                                 </button>
-                            )}
-                            <button
-                                onClick={() => {
-                                    setModalOpen(false);
-                                    setSubstituteId('');
-                                }}
-                                className="flex-1 btn bg-gray-100 hover:bg-gray-200 text-gray-700"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={applyChanges}
-                                className="flex-1 btn btn-primary flex items-center justify-center gap-2"
-                                disabled={!selectedSubject}
-                            >
-                                <Edit2 size={16} />
-                                {timetable[`${selectedCell?.day}-${selectedCell?.period}`] ? 'Update' : 'Assign'}
-                            </button>
+                            </div>
+
+                            {/* Type Switcher */}
+                            <div className="p-2 bg-gray-50 rounded-[32px] border border-gray-100 mb-8 flex gap-2">
+                                <button
+                                    className={`flex - 1 py - 4 rounded - [24px] font - black text - xs uppercase tracking - widest transition - all ${entryType === 'THEORY' ? 'bg-white text-[#003B73] shadow-md border border-gray-100' : 'text-gray-400 hover:text-gray-600'} `}
+                                    onClick={() => setEntryType('THEORY')}
+                                >
+                                    Theory Class
+                                </button>
+                                <button
+                                    className={`flex - 1 py - 4 rounded - [24px] font - black text - xs uppercase tracking - widest transition - all ${entryType === 'LAB' ? 'bg-[#003B73] text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'} `}
+                                    onClick={() => setEntryType('LAB')}
+                                >
+                                    Laboratory
+                                </button>
+                            </div>
+
+                            <form className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Academic Subject</label>
+                                        <div className="relative group">
+                                            <select
+                                                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-3xl font-bold text-gray-800 outline-none transition-all appearance-none cursor-pointer"
+                                                value={selectedSubject}
+                                                onChange={e => handleSubjectChange(e.target.value)}
+                                            >
+                                                <option value="">-- Select Subject --</option>
+                                                {availableSubjects.map(s => (
+                                                    <option key={s.id} value={s.name}>{s.shortName ? `${s.shortName} - ${s.name} ` : s.name}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-focus-within:text-[#003B73]">
+                                                <BookOpen size={18} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Primary Faculty</label>
+                                        <div className="relative">
+                                            <input
+                                                className="w-full px-6 py-5 bg-gray-100 border-2 border-transparent rounded-3xl font-bold text-gray-500 outline-none cursor-not-allowed"
+                                                value={selectedFaculty}
+                                                readOnly
+                                                placeholder="Linked to Subject"
+                                            />
+                                            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300">
+                                                <User size={18} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Room / Venue</label>
+                                        <div className="relative group">
+                                            <input
+                                                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-3xl font-bold text-gray-800 outline-none transition-all"
+                                                placeholder="e.g. Lab-301"
+                                                value={selectedRoom}
+                                                onChange={e => setSelectedRoom(e.target.value)}
+                                            />
+                                            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#003B73]">
+                                                <MapPin size={18} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Session Duration</label>
+                                        <div className="relative group">
+                                            <select
+                                                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-[#003B73] rounded-3xl font-bold text-gray-800 outline-none transition-all appearance-none cursor-pointer"
+                                                value={selectedDuration}
+                                                onChange={e => setSelectedDuration(parseInt(e.target.value))}
+                                            >
+                                                <option value={1}>1 Period (Standard)</option>
+                                                <option value={2}>2 Periods (Double)</option>
+                                                <option value={3}>3 Periods (Block)</option>
+                                            </select>
+                                            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#003B73]">
+                                                <Clock size={18} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {renderStatusSection()}
+
+                                <div className="flex gap-4 pt-4 pb-8">
+                                    {timetable[`${selectedCell?.day} -${selectedCell?.period} `] && (
+                                        <button
+                                            type="button"
+                                            onClick={deleteEntry}
+                                            className="px-6 py-5 bg-red-50 text-red-600 rounded-[24px] font-black hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100 flex items-center justify-center"
+                                            title="Permanently Remove"
+                                        >
+                                            <Trash2 size={24} />
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowModal(false)}
+                                        className="flex-1 py-5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-[24px] font-black transition-all transform active:scale-95"
+                                    >
+                                        Discard
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={applyChanges}
+                                        disabled={!selectedSubject}
+                                        className="flex-[2] py-5 bg-[#003B73] text-white rounded-[24px] font-black hover:bg-[#002850] shadow-xl shadow-blue-900/10 transition-all transform active:scale-95 disabled:opacity-50"
+                                    >
+                                        {timetable[`${selectedCell?.day} -${selectedCell?.period} `] ? 'Commit Updates' : 'Confirm Assignment'}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                        {renderStatusSection()}
                     </div>
                 </div>
             )}

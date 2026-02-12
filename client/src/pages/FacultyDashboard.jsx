@@ -40,7 +40,7 @@ const FacultyDashboard = () => {
             <div className="flex-1 flex flex-col ml-64 transition-all duration-300">
                 <Header title="Faculty Portal" />
 
-                <main className="flex-1 p-0 mt-24 overflow-y-auto animate-fadeIn">
+                <main className="flex-1 p-8 mt-24 overflow-y-auto animate-fadeIn">
                     <Routes>
                         <Route path="/" element={<FacultyHome assignedSubjects={assignedSubjects} />} />
                         <Route path="/marks" element={<EnterMarks />} />

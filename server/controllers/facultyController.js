@@ -297,6 +297,22 @@ const updateMarks = async (req, res) => {
         const touchingCia2 = keys.some(k => cia2Fields.includes(k));
         const touchingCia3 = keys.some(k => cia3Fields.includes(k));
 
+        // 🧱 FIX LOCK ENFORCEMENT (CRITICAL)
+        // 1. Check Semester-level lock
+        const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
+        const semControl = await prisma.semesterControl.findFirst({
+            where: {
+                department: student.department || 'GEN',
+                year: student.year,
+                semester: student.semester,
+                section: student.section
+            }
+        });
+
+        if (semControl && semControl.isLocked) {
+            return res.status(403).json({ message: 'Academic integrity rule: Semester is permanently locked by Administrator.' });
+        }
+
         if (currentMark) {
             if (touchingCia1 && currentMark.isLocked_cia1) return res.status(403).json({ message: 'CIA 1 marks are locked.' });
             if (touchingCia2 && currentMark.isLocked_cia2) return res.status(403).json({ message: 'CIA 2 marks are locked.' });
@@ -309,7 +325,12 @@ const updateMarks = async (req, res) => {
 
         allowedFields.forEach(field => {
             if (req.body[field] !== undefined) {
-                fieldsToUpdate[field] = req.body[field] === '' ? null : parseFloat(req.body[field]);
+                const val = req.body[field] === '' ? null : parseFloat(req.body[field]);
+                // 🧱 RANGE VALIDATION
+                if (val !== null && (val < 0 || val > 100)) {
+                    throw new Error(`Invalid mark value for ${field}: ${val}. Must be between 0 and 100.`);
+                }
+                fieldsToUpdate[field] = val;
             }
         });
 

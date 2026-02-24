@@ -506,6 +506,12 @@ exports.exportConsolidatedPlan = async (req, res) => {
 
         if (!session) return res.status(404).json({ message: "Session not found" });
 
+        const deptsFromDb = await prisma.department.findMany();
+        const deptMap = {};
+        deptsFromDb.forEach(d => {
+            deptMap[d.name] = d.code || d.name;
+        });
+
         const allocations = await prisma.hallAllocation.findMany({
             where: { examSessionId: parseInt(id) },
             include: {
@@ -559,11 +565,12 @@ exports.exportConsolidatedPlan = async (req, res) => {
             const h = hallGroups[hId];
             h.totalStrength++;
 
-            const key = `${a.subject.semester}-${a.department}`;
+            const shortDept = deptMap[a.department] || a.department;
+            const key = `${a.subject.semester}-${shortDept}`;
             if (!h.deptData[key]) {
                 h.deptData[key] = {
                     sem: a.subject.semester,
-                    dept: a.department,
+                    dept: shortDept,
                     students: []
                 };
             }
@@ -678,6 +685,12 @@ exports.exportSeatingGrid = async (req, res) => {
 
         if (!session) return res.status(404).json({ message: "Session not found" });
 
+        const deptsFromDb = await prisma.department.findMany();
+        const deptMap = {};
+        deptsFromDb.forEach(d => {
+            deptMap[d.name] = d.code || d.name;
+        });
+
         const allocations = await prisma.hallAllocation.findMany({
             where: { examSessionId: parseInt(id) },
             include: {
@@ -748,16 +761,7 @@ exports.exportSeatingGrid = async (req, res) => {
 
                 const getHeaderStr = (stus) => {
                     const unique = [...new Set(stus.map(s => {
-                        let dept = s.department;
-                        if (dept === "Mechanical Engineering") dept = "Mechanical";
-                        else if (dept === "Civil Engineering") dept = "Civil";
-                        else if (dept === "Computer Science and Engineering") dept = "CSE";
-                        else if (dept === "Electronics and Communication Engineering") dept = "ECE";
-                        else if (dept === "Electrical and Electronics Engineering") dept = "EEE";
-                        else if (dept === "Information Technology") dept = "IT";
-                        else if (dept === "Artificial Intelligence and Data Science") dept = "AIDS";
-                        else if (dept === "Biomedical Engineering") dept = "BME";
-
+                        let dept = deptMap[s.department] || s.department;
                         return `${getRomanNumeral(s.year)} ${dept}`;
                     }))];
                     return unique.join(' /\n');
@@ -801,24 +805,23 @@ exports.exportSeatingGrid = async (req, res) => {
 
                         if (leftStu) {
                             const leftText = leftStu.student.registerNumber || leftStu.student.rollNo;
-                            // Adding break in register number after first 8 digits to handle huge strings (e.g. 812423114001 -> 81242311\n4001)
-                            const splitLeft = leftText && leftText.length > 8 ? leftText.slice(0, 8) + "\n" + leftText.slice(8) : leftText;
-                            const textH = doc.fontSize(6).font('Helvetica').heightOfString(splitLeft, { width: stuW - 2 });
-                            doc.text(splitLeft, currentX + seatW + 1, currentY + (seatCellH / 2) - (textH / 2), { width: stuW - 2, align: 'center', lineGap: 1 });
+                            const textFontSize = leftText && leftText.length > 8 ? 7 : 8; // Increased font size
+                            const textH = doc.fontSize(textFontSize).font('Helvetica').heightOfString(leftText, { width: stuW, lineBreak: false });
+                            doc.text(leftText, currentX + seatW, currentY + (seatCellH / 2) - (textH / 2), { width: stuW, align: 'center', lineBreak: false });
                         }
                         if (rightStu) {
                             const rightText = rightStu.student.registerNumber || rightStu.student.rollNo;
-                            const splitRight = rightText && rightText.length > 8 ? rightText.slice(0, 8) + "\n" + rightText.slice(8) : rightText;
-                            const textH = doc.fontSize(6).font('Helvetica').heightOfString(splitRight, { width: stuW - 2 });
-                            doc.text(splitRight, currentX + seatW + stuW + 1, currentY + (seatCellH / 2) - (textH / 2), { width: stuW - 2, align: 'center', lineGap: 1 });
+                            const textFontSize = rightText && rightText.length > 8 ? 7 : 8; // Increased font size
+                            const textH = doc.fontSize(textFontSize).font('Helvetica').heightOfString(rightText, { width: stuW, lineBreak: false });
+                            doc.text(rightText, currentX + seatW + stuW, currentY + (seatCellH / 2) - (textH / 2), { width: stuW, align: 'center', lineBreak: false });
                         }
                     } else {
                         doc.rect(currentX + seatW, currentY, stuW * 2, seatCellH).stroke();
                         if (leftStu) {
                             const leftText = leftStu.student.registerNumber || leftStu.student.rollNo;
-                            const splitLeft = leftText && leftText.length > 8 ? leftText.slice(0, 8) + "\n" + leftText.slice(8) : leftText;
-                            const textH = doc.fontSize(6).font('Helvetica').heightOfString(splitLeft, { width: (stuW * 2) - 2 });
-                            doc.text(splitLeft, currentX + seatW + 1, currentY + (seatCellH / 2) - (textH / 2), { width: (stuW * 2) - 2, align: 'center', lineGap: 1 });
+                            const textFontSize = leftText && leftText.length > 8 ? 7 : 8; // Increased font size
+                            const textH = doc.fontSize(textFontSize).font('Helvetica').heightOfString(leftText, { width: stuW * 2, lineBreak: false });
+                            doc.text(leftText, currentX + seatW, currentY + (seatCellH / 2) - (textH / 2), { width: stuW * 2, align: 'center', lineBreak: false });
                         }
                     }
 
@@ -831,15 +834,7 @@ exports.exportSeatingGrid = async (req, res) => {
             if (summaryY < 550) {
                 const deptStats = {};
                 hallAllocations.forEach(a => {
-                    let dept = a.department;
-                    if (dept === "Mechanical Engineering") dept = "Mechanical";
-                    else if (dept === "Civil Engineering") dept = "Civil";
-                    else if (dept === "Computer Science and Engineering") dept = "CSE";
-                    else if (dept === "Electronics and Communication Engineering") dept = "ECE";
-                    else if (dept === "Electrical and Electronics Engineering") dept = "EEE";
-                    else if (dept === "Information Technology") dept = "IT";
-                    else if (dept === "Artificial Intelligence and Data Science") dept = "AIDS";
-                    else if (dept === "Biomedical Engineering") dept = "BME";
+                    let dept = deptMap[a.department] || a.department;
 
                     const key = `${getRomanNumeral(a.year)} ${dept}`;
                     deptStats[key] = (deptStats[key] || 0) + 1;

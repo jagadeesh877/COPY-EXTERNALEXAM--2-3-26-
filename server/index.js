@@ -8,6 +8,9 @@ dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
+const compression = require('compression');
+
+app.use(compression());
 
 app.use(cors({
     origin: '*',
@@ -47,6 +50,23 @@ app.use('/api/materials', materialRoutes);
 app.use('/api/dummy', require('./routes/dummyRoutes'));
 app.use('/api/external/marks', require('./routes/externalMarkRoutes'));
 
+const os = require('os');
+const networkInterfaces = os.networkInterfaces();
+let currentIp = 'localhost';
+
+for (const interfaceName in networkInterfaces) {
+    const interfaces = networkInterfaces[interfaceName];
+    for (const iface of interfaces) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+            currentIp = iface.address;
+            break;
+        }
+    }
+    if (currentIp !== 'localhost') break;
+}
+
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://172.27.53.175:${PORT}`);
+    console.log(`Server running on:`);
+    console.log(`- Local:   http://localhost:${PORT}`);
+    console.log(`- Network: http://${currentIp}:${PORT}`);
 });

@@ -95,8 +95,11 @@ const HallAllocation = () => {
     };
 
     const handleColumnNumChange = (num) => {
-        const count = parseInt(num) || 1;
-        const newCols = Array.from({ length: count }, (_, i) => ({
+        let count = num === '' ? '' : parseInt(num);
+        if (count !== '' && isNaN(count)) return;
+
+        const effectiveCount = count === '' ? 0 : count;
+        const newCols = Array.from({ length: effectiveCount }, (_, i) => ({
             label: String.fromCharCode(65 + i),
             benches: newHall.columns[i]?.benches || ''
         }));

@@ -37,8 +37,9 @@ const AttendanceReports = () => {
             const res = await api.get('/admin/attendance/report', {
                 params: { department, year, section, fromDate, toDate }
             });
-            setReportData(res.data);
+            setReportData(res.data.students || []);
         } catch (err) {
+            console.error("Failed to fetch report", err);
             alert("Failed to fetch report");
         } finally {
             setLoading(false);

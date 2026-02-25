@@ -179,13 +179,16 @@ const getAttendanceReport = async (req, res) => {
             };
         });
 
-        const distinctSlots = await prisma.studentAttendance.groupBy({
-            by: ['date', 'period'],
-            where: {
-                subjectId: parseInt(subjectId),
-                date: { gte: fromDate, lte: toDate }
-            }
-        });
+        let distinctSlots = [];
+        if (subjectId) {
+            distinctSlots = await prisma.studentAttendance.groupBy({
+                by: ['date', 'period'],
+                where: {
+                    subjectId: parseInt(subjectId),
+                    date: { gte: fromDate, lte: toDate }
+                }
+            });
+        }
 
         res.json({
             students: report,

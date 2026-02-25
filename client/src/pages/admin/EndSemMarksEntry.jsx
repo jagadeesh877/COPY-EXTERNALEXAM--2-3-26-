@@ -146,7 +146,7 @@ const EndSemMarksEntry = () => {
                         >
                             <option value="">Select...</option>
                             {departments.map(d => (
-                                <option key={d.id} value={d.name}>
+                                <option key={d.id} value={d.code || d.name}>
                                     {d.name}
                                 </option>
                             ))}

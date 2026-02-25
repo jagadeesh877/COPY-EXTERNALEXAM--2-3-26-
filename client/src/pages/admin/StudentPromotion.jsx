@@ -401,7 +401,7 @@ const StudentPromotion = () => {
                                     onChange={e => setPromoDept(e.target.value)}
                                 >
                                     <option value="">-- SELECT SECTOR --</option>
-                                    {departments.map(d => <option key={d.id} value={d.name}>{d.code || d.name}</option>)}
+                                    {departments.map(d => <option key={d.id} value={d.code || d.name}>{d.code || d.name}</option>)}
                                 </select>
                             </div>
 

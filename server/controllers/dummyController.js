@@ -5,9 +5,14 @@ exports.generateMapping = async (req, res) => {
     try {
         const { department, semester, subjectId, startingDummy, boardCode, qpCode, absentStudentIds = [] } = req.body;
 
+        const deptRecord = await prisma.department.findFirst({
+            where: { OR: [{ code: department }, { name: department }] }
+        });
+        const deptCode = deptRecord ? (deptRecord.code || deptRecord.name) : department;
+
         // 1. Fetch students (sorted by registerNumber ASC)
         const students = await prisma.student.findMany({
-            where: { department, semester: parseInt(semester) },
+            where: { department: deptCode, semester: parseInt(semester) },
             orderBy: { registerNumber: 'asc' }
         });
 
@@ -80,10 +85,16 @@ exports.generateMapping = async (req, res) => {
 exports.getMapping = async (req, res) => {
     try {
         const { department, semester, subjectId } = req.query;
+
+        const deptRecord = await prisma.department.findFirst({
+            where: { OR: [{ code: department }, { name: department }] }
+        });
+        const deptCode = deptRecord ? (deptRecord.code || deptRecord.name) : department;
+
         // Fetch all students for this group
         const students = await prisma.student.findMany({
             where: {
-                department,
+                department: deptCode,
                 semester: parseInt(semester)
             },
             include: {
@@ -129,6 +140,23 @@ exports.lockMapping = async (req, res) => {
             data: { mappingLocked: true }
         });
         res.json({ message: "Mapping locked successfully" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.unlockMapping = async (req, res) => {
+    try {
+        const { department, semester, subjectId } = req.body;
+        await prisma.subjectDummyMapping.updateMany({
+            where: {
+                department,
+                semester: parseInt(semester),
+                subjectId: parseInt(subjectId)
+            },
+            data: { mappingLocked: false }
+        });
+        res.json({ message: "Mapping unlocked successfully" });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

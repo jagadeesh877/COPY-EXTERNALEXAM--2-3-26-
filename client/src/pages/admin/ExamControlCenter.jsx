@@ -112,7 +112,7 @@ const ExamControlCenter = () => {
                         >
                             <option value="">Select...</option>
                             {departments.map(d => (
-                                <option key={d.id} value={d.name}>{d.name}</option>
+                                <option key={d.id} value={d.code || d.name}>{d.name}</option>
                             ))}
                         </select>
                     </div>

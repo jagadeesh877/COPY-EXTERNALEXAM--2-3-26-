@@ -156,7 +156,7 @@ const CourseManager = () => {
                         >
                             <option value="">All Departments</option>
                             <option value="COMMON">First Year (Common)</option>
-                            {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                            {departments.map(d => <option key={d.id} value={d.code || d.name}>{d.name}</option>)}
                         </select>
                     </div>
                 </div>
@@ -343,7 +343,7 @@ const CourseManager = () => {
                                         disabled={newCourse.type === 'COMMON'}
                                     >
                                         <option value="">{newCourse.type === 'COMMON' ? 'N/A' : 'Select Dept'}</option>
-                                        {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                                        {departments.map(d => <option key={d.id} value={d.code || d.name}>{d.name}</option>)}
                                     </select>
                                 </div>
                             </div>

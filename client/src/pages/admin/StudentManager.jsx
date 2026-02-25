@@ -70,15 +70,20 @@ const StudentManager = () => {
         try {
             const res = await api.get('/admin/students');
             const allStudents = Array.isArray(res.data) ? res.data : [];
+
+            // Find the short code for the currently selected department name
+            const matchingDept = departments.find(d => d.name === selectedDept);
+            const deptCodeToMatch = matchingDept ? (matchingDept.code || matchingDept.name) : selectedDept;
+
             const filtered = allStudents.filter(s => {
                 const yearMatch = s.year === parseInt(selectedYear);
                 const sectionMatch = s.section === section;
 
                 if (selectedDept === 'First Year (General)') {
-                    return yearMatch && sectionMatch && (s.department === null || s.department === '' || s.department === 'First Year (General)');
+                    return yearMatch && sectionMatch && (s.department === null || s.department === '' || s.department === 'First Year (General)' || s.department === 'GEN');
                 }
 
-                return yearMatch && sectionMatch && s.department === selectedDept && s.year > 1;
+                return yearMatch && sectionMatch && s.department === deptCodeToMatch && s.year > 1;
             });
             setStudentsList(filtered);
         } catch (err) {
@@ -578,7 +583,7 @@ const StudentManager = () => {
                                         disabled={newStudent.year === '1'}
                                     >
                                         <option value="">{newStudent.year === '1' ? 'Common (First Year)' : 'Select Dept'}</option>
-                                        {departments.filter(d => d.name !== 'First Year (General)').map(d => <option key={d.id} value={d.name}>{d.code || d.name}</option>)}
+                                        {departments.filter(d => d.name !== 'First Year (General)').map(d => <option key={d.id} value={d.code || d.name}>{d.code || d.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
@@ -696,7 +701,7 @@ const StudentManager = () => {
                                         disabled={parseInt(editingStudent.year) === 1}
                                     >
                                         <option value="">{parseInt(editingStudent.year) === 1 ? 'Common (First Year)' : 'Select Dept'}</option>
-                                        {departments.filter(d => d.name !== 'First Year (General)').map(d => <option key={d.id} value={d.name}>{d.code || d.name}</option>)}
+                                        {departments.filter(d => d.name !== 'First Year (General)').map(d => <option key={d.id} value={d.code || d.name}>{d.code || d.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
@@ -806,7 +811,7 @@ const StudentManager = () => {
                                         className="w-full p-3 bg-white border border-gray-200 rounded-xl font-bold text-sm outline-none"
                                     >
                                         <option value="">Auto-Detect</option>
-                                        {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                                        {departments.map(d => <option key={d.id} value={d.code || d.name}>{d.name}</option>)}
                                     </select>
                                 </div>
                                 <div className="col-span-2 md:col-span-1">

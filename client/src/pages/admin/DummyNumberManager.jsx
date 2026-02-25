@@ -31,7 +31,7 @@ const DummyNumberManager = () => {
     const fetchSubjects = async (dept, sem) => {
         if (!dept || !sem) return;
         try {
-            const res = await api.get(`/admin/subjects?department=${dept}&semester=${sem}`);
+            const res = await api.get(`/admin/subjects?department=${encodeURIComponent(dept)}&semester=${encodeURIComponent(sem)}`);
             setSubjects(res.data);
 
             // Auto complete course code dynamically here if needed
@@ -55,7 +55,7 @@ const DummyNumberManager = () => {
         if (!filters.subjectId) return;
         setLoading(true);
         try {
-            const res = await api.get(`/dummy/mapping?department=${filters.department}&semester=${filters.semester}&subjectId=${filters.subjectId}`);
+            const res = await api.get(`/dummy/mapping?department=${encodeURIComponent(filters.department)}&semester=${encodeURIComponent(filters.semester)}&subjectId=${encodeURIComponent(filters.subjectId)}`);
             setMappings(res.data);
 
             // Pre-fill existing general fields if already generated
@@ -113,6 +113,17 @@ const DummyNumberManager = () => {
         }
     };
 
+    const unlockMapping = async () => {
+        if (!window.confirm('Are you sure you want to unlock this mapping? External evaluators might be actively entering marks.')) return;
+        try {
+            await api.post('/dummy/unlock', filters);
+            toast.success('Mapping successfully unlocked');
+            fetchMappings();
+        } catch (err) {
+            toast.error('Failed to unlock mapping');
+        }
+    };
+
     const toggleAbsent = (studentId) => {
         // Only allow toggling if mapping is not locked
         if (mappings.length > 0 && mappings[0].mappingLocked) return;
@@ -127,8 +138,16 @@ const DummyNumberManager = () => {
     const courseCodeDisplay = selectedSubject ? selectedSubject.code : '-';
     const isLocked = mappings.length > 0 && mappings[0].mappingLocked;
 
-    const presentStudents = mappings.filter(m => !absentStudentIds.includes(m.studentId) && (!m.isAbsent || m.isTemp));
-    const absentStudents = mappings.filter(m => absentStudentIds.includes(m.studentId) || (m.isAbsent && !m.isTemp));
+    // Fix Absentee Bug: if m.isAbsent is true, NEVER put them in presentStudents even if mapping is locked.
+    const presentStudents = mappings.filter(m => {
+        if (isLocked) return !m.isAbsent;
+        return !absentStudentIds.includes(m.studentId) && (!m.isAbsent || m.isTemp);
+    });
+
+    const absentStudents = mappings.filter(m => {
+        if (isLocked) return m.isAbsent;
+        return absentStudentIds.includes(m.studentId) || (m.isAbsent && !m.isTemp);
+    });
 
     return (
         <div className="p-8">
@@ -148,10 +167,19 @@ const DummyNumberManager = () => {
                     <button
                         onClick={lockMapping}
                         disabled={loading || mappings.length === 0 || isLocked || mappings[0]?.isTemp}
-                        className="bg-red-600 text-white px-8 py-3 rounded-2xl flex items-center gap-2 font-black tracking-wider shadow-lg hover:bg-red-700 transition-all disabled:opacity-50"
+                        className={`bg-red-600 text-white px-8 py-3 rounded-2xl flex items-center gap-2 font-black tracking-wider shadow-lg hover:bg-red-700 transition-all disabled:opacity-50 ${isLocked ? 'hidden' : ''}`}
                     >
                         <Lock size={20} /> LOCK MAPPING
                     </button>
+                    {isLocked && (
+                        <button
+                            onClick={unlockMapping}
+                            disabled={loading || mappings.length === 0}
+                            className="bg-yellow-500 text-white px-8 py-3 rounded-2xl flex items-center gap-2 font-black tracking-wider shadow-lg hover:bg-yellow-600 transition-all disabled:opacity-50"
+                        >
+                            <Shield size={20} /> UNLOCK MAPPING
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -162,7 +190,7 @@ const DummyNumberManager = () => {
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Department</label>
                         <select name="department" value={filters.department} onChange={handleFilterChange} disabled={isLocked} className="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none font-black text-[#003B73]">
                             <option value="">Select Department</option>
-                            {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                            {departments.map(d => <option key={d.id} value={d.code || d.name}>{d.code || d.name}</option>)}
                         </select>
                     </div>
                     <div>

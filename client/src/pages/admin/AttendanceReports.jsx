@@ -197,7 +197,11 @@ const AttendanceReports = () => {
             <CustomSelect
               className="w-full"
               value={year}
-              onChange={(e) => setYear(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setYear(val);
+                if (val === "1") setDepartment("");
+              }}
             >
               {["1", "2", "3", "4"].map((y) => (
                 <option key={y} value={y}>

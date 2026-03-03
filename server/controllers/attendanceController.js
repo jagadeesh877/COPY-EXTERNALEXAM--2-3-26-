@@ -107,8 +107,10 @@ const getAttendanceReport = async (req, res) => {
                 where.section = assignment.section;
             }
         } else {
-            if (department) {
-                const deptFilter = await getDeptCriteria(department);
+            // Broaden search for Year 1 (GEN) students
+            if (department || String(year) === '1') {
+                const searchDept = String(year) === '1' ? 'GEN' : department;
+                const deptFilter = await getDeptCriteria(searchDept);
                 Object.assign(where, deptFilter);
             }
             if (year) where.year = parseInt(year);

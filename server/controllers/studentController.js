@@ -229,6 +229,13 @@ const getStudents = async (req, res) => {
 const promoteStudents = async (req, res) => {
     const { studentIds, department, section, semester, year, currentSectionId, nextSemester, departmentSectionMap, targetSectionId, nextAcademicYearId } = req.body;
     try {
+        // Resolve Active Academic Year if not provided
+        let activeAY = null;
+        if (!nextAcademicYearId) {
+            activeAY = await prisma.academicYear.findFirst({ where: { isActive: true } });
+        }
+        const resolvedAYId = nextAcademicYearId ? parseInt(nextAcademicYearId) : (activeAY?.id || 1);
+
         // Relational Architecture Branch (Phase 2+)
         if (currentSectionId && nextSemester) {
             const students = await prisma.student.findMany({
@@ -254,12 +261,23 @@ const promoteStudents = async (req, res) => {
                         data: {
                             currentSemester: parseInt(nextSemester),
                             sectionId: parseInt(assignedSectionId),
-                            academicYearId: nextAcademicYearId ? parseInt(nextAcademicYearId) : student.academicYearId,
+                            academicYearId: resolvedAYId,
                             // Legacy sync
                             semester: parseInt(nextSemester),
                             year: Math.ceil(parseInt(nextSemester) / 2)
                         }
                     });
+
+                    // Create Promotion Log
+                    await tx.activityLog.create({
+                        data: {
+                            action: 'STUDENT_PROMOTION',
+                            description: `Promoted to Sem ${nextSemester} ${section || ''}`,
+                            performedBy: parseInt(req.user.id),
+                            targetId: student.id
+                        }
+                    });
+
                     updatedCount++;
                 }
             });
@@ -313,7 +331,7 @@ const promoteStudents = async (req, res) => {
                     name: section,
                     semester: resolvedSemester,
                     departmentId: isFirstYear ? null : targetDeptId,
-                    academicYearId: 1 // Default for now
+                    academicYearId: resolvedAYId
                 }
             });
             if (secObj) targetSecId = secObj.id;
@@ -463,11 +481,37 @@ const bulkUploadStudents = async (req, res) => {
     }
 };
 
+const batchAssignRegisterNumbers = async (req, res) => {
+    const { studentIds, startNumber, prefix = '' } = req.body;
+    try {
+        if (!studentIds || !Array.isArray(studentIds) || !startNumber) {
+            return res.status(400).json({ message: "Invalid input. studentIds and startNumber are required." });
+        }
+
+        let currentNum = parseInt(startNumber);
+        if (isNaN(currentNum)) return res.status(400).json({ message: "Start number must be a valid number." });
+
+        const results = await prisma.$transaction(
+            studentIds.map((id) =>
+                prisma.student.update({
+                    where: { id: parseInt(id) },
+                    data: { registerNumber: `${prefix}${currentNum++}` }
+                })
+            )
+        );
+
+        res.json({ message: `Successfully assigned register numbers to ${results.length} students`, count: results.length });
+    } catch (error) {
+        handleError(res, error, "Error in batch register assignment");
+    }
+};
+
 module.exports = {
     createStudent,
     updateStudent,
     deleteStudent,
     getStudents,
     promoteStudents,
-    bulkUploadStudents
+    bulkUploadStudents,
+    batchAssignRegisterNumbers
 };

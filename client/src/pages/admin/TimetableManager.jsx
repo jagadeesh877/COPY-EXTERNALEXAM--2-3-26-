@@ -52,6 +52,8 @@ const TimetableManager = () => {
   const [statusLoading, setStatusLoading] = useState(false);
   const [assigningSub, setAssigningSub] = useState(false);
   const [substituteId, setSubstituteId] = useState("");
+  const [facultyAvailability, setFacultyAvailability] = useState([]);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
 
   const days = ["MON", "TUE", "WED", "THU", "FRI"];
   const periods = [
@@ -299,10 +301,27 @@ const TimetableManager = () => {
         reason: "Marked from Timetable",
       });
       fetchDailyStatus();
+      fetchAvailability(selectedDate, selectedCell?.period);
       setShowModal(false);
       alert("Faculty marked as absent.");
     } catch (err) {
       alert(err.response?.data?.message || "Failed to mark absent");
+    }
+  };
+
+  const fetchAvailability = async (date, period) => {
+    if (!date || !period) return;
+    setCheckingAvailability(true);
+    try {
+      const res = await api.get("/admin/faculty/availability", {
+        params: { date, period },
+      });
+      setFacultyAvailability(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch availability:", err);
+      setFacultyAvailability([]);
+    } finally {
+      setCheckingAvailability(false);
     }
   };
 
@@ -321,7 +340,7 @@ const TimetableManager = () => {
       setShowModal(false);
       alert("Substitute assigned successfully!");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to assign substitute");
+      alert(err.response?.data?.details || err.response?.data?.message || "Failed to assign substitute");
     } finally {
       setAssigningSub(false);
     }
@@ -508,12 +527,26 @@ const TimetableManager = () => {
                           value={substituteId}
                           onChange={(e) => setSubstituteId(e.target.value)}
                         >
-                          <option value="">-- Available Substitutes --</option>
-                          {(Array.isArray(facultyList) ? facultyList : [])
+                          <option value="">
+                            {checkingAvailability
+                              ? "Validating Availability..."
+                              : "-- Select substitute --"}
+                          </option>
+                          {(Array.isArray(facultyAvailability)
+                            ? facultyAvailability
+                            : []
+                          )
                             .filter((f) => f.id !== entry.facultyId)
                             .map((f) => (
-                              <option key={f.id} value={f.id}>
-                                {f.fullName} • {f.department}
+                              <option
+                                key={f.id}
+                                value={f.id}
+                                disabled={!!f.conflict}
+                              >
+                                {f.fullName}
+                                {f.conflict
+                                  ? ` (${f.conflict.type === "ABSENCE" ? "Absent" : f.conflict.type === "TEACHING" ? "Teaching" : "Assigned Sub"})`
+                                  : " (Available)"}
                               </option>
                             ))}
                         </CustomSelect>

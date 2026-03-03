@@ -41,8 +41,13 @@ const ExternalMarkEntry = () => {
   };
 
   const handleMarkChange = (dummyNumber, value) => {
-    if (value === "" || (parseFloat(value) >= 0 && parseFloat(value) <= 100)) {
+    if (value === "") {
       setMarks((prev) => ({ ...prev, [dummyNumber]: value }));
+      return;
+    }
+    const intVal = parseInt(value, 10);
+    if (!isNaN(intVal) && intVal >= 0 && intVal <= 100) {
+      setMarks((prev) => ({ ...prev, [dummyNumber]: intVal }));
     }
   };
 
@@ -53,7 +58,7 @@ const ExternalMarkEntry = () => {
       const marksArray = Object.entries(marks).map(
         ([dummyNumber, rawMark]) => ({
           dummyNumber,
-          rawMark: parseFloat(rawMark),
+          rawMark: parseInt(rawMark, 10),
         }),
       );
       await api.post("/external/marks/submit", {
@@ -170,8 +175,8 @@ const ExternalMarkEntry = () => {
                                 type="number"
                                 min="0"
                                 max="100"
-                                step="0.5"
-                                placeholder="0.0"
+                                step="1"
+                                placeholder="0"
                                 className="w-24 p-2 bg-gray-50 rounded-xl border-2 border-transparent focus:border-blue-600 outline-none font-black text-center text-lg text-[#003B73] transition-all"
                                 value={marks[item.dummyNumber] || ""}
                                 onChange={(e) =>

@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 const { handleError } = require('../utils/errorUtils');
+const { checkTimetableClash, checkFacultyAvailability } = require('../utils/clashUtils');
 
 // --- Faculty Management ---
 
@@ -45,7 +46,6 @@ const deleteFaculty = async (req, res) => {
         handleError(res, error, "Error deleting faculty");
     }
 };
-
 // --- Timetable Management ---
 
 const getTimetable = async (req, res) => {
@@ -96,9 +96,35 @@ const saveTimetable = async (req, res) => {
         const yr = parseInt(year);
         const sem = parseInt(semester);
 
+        // --- Clash Detection (Bulk Validation) ---
+        for (const e of entries) {
+            if (!e.day || !e.period) continue;
+
+            const clash = await checkTimetableClash({
+                day: e.day,
+                period: e.period,
+                facultyId: e.facultyId,
+                room: e.room
+            });
+
+            if (clash) {
+                // If the clash is from ANOTHER section/year/department, reject it
+                const isSameSlot = clash.department === department &&
+                    clash.year === yr &&
+                    clash.semester === sem &&
+                    clash.section === section;
+
+                if (!isSameSlot) {
+                    return res.status(409).json({
+                        message: `Clash detected for Period ${e.period} (${e.day})`,
+                        details: `Faculty ${clash.faculty?.fullName || 'Teacher'} or Room ${clash.room} is already occupied by ${clash.department} Y${clash.year} ${clash.section}.`
+                    });
+                }
+            }
+        }
+
         await prisma.$transaction(async (tx) => {
             // 1. Delete ALL existing entries for this specific combination
-            // This ensures "deleted" cells in UI are actually removed from DB
             await tx.timetable.deleteMany({
                 where: {
                     department,
@@ -153,7 +179,13 @@ const markFacultyAbsent = async (req, res) => {
     const { facultyId, date, reason } = req.body;
     try {
         const fId = parseInt(facultyId);
-        // Simplified Logic
+
+        // Prevent duplicate absences for same day (Full Day)
+        const existing = await prisma.facultyAbsence.findFirst({
+            where: { facultyId: fId, date, period: 0 }
+        });
+        if (existing) return res.status(400).json({ message: 'Already marked absent for this date' });
+
         await prisma.facultyAbsence.create({
             data: { facultyId: fId, date, reason, period: 0 }
         });
@@ -179,16 +211,13 @@ const removeFacultyAbsence = async (req, res) => {
 
         const fId = parseInt(facultyId);
 
-        // Optional: Substitution cleanup if needed
         if (cleanup === 'true') {
-            // Find all timetable slots for this faculty
             const mySlots = await prisma.timetable.findMany({
                 where: { facultyId: fId },
                 select: { id: true }
             });
             const slotIds = mySlots.map(s => s.id);
 
-            // Remove all substitutions for this faculty on this date
             await prisma.substitution.deleteMany({
                 where: {
                     date: date,
@@ -197,7 +226,6 @@ const removeFacultyAbsence = async (req, res) => {
             });
         }
 
-        // Delete the absence(s)
         await prisma.facultyAbsence.deleteMany({
             where: {
                 facultyId: fId,
@@ -215,7 +243,12 @@ const removeFacultyAbsence = async (req, res) => {
 const getSubstitutions = async (req, res) => {
     try {
         const subs = await prisma.substitution.findMany({
-            include: { timetable: true, substituteFaculty: true }
+            include: {
+                timetable: {
+                    include: { subject: true, faculty: true }
+                },
+                substituteFaculty: true
+            }
         });
         res.json(subs);
     } catch (error) {
@@ -226,10 +259,46 @@ const getSubstitutions = async (req, res) => {
 const assignSubstitute = async (req, res) => {
     const { timetableId, substituteFacultyId, date } = req.body;
     try {
-        const sub = await prisma.substitution.create({
-            data: {
-                timetableId: parseInt(timetableId),
-                substituteFacultyId: parseInt(substituteFacultyId),
+        const ttId = parseInt(timetableId);
+        const subFId = parseInt(substituteFacultyId);
+
+        // 1. Fetch timetable context for availability check
+        const ttSlot = await prisma.timetable.findUnique({
+            where: { id: ttId }
+        });
+
+        if (!ttSlot) return res.status(404).json({ message: 'Timetable slot not found' });
+
+        // 2. Perform availability check
+        const availabilityConflict = await checkFacultyAvailability({
+            facultyId: subFId,
+            date,
+            period: ttSlot.period
+        });
+
+        if (availabilityConflict) {
+            let reasonStr = "Faculty is unavailable";
+            if (availabilityConflict.type === 'ABSENCE') reasonStr = "Faculty is marked as ABSENT for this period.";
+            if (availabilityConflict.type === 'TEACHING') reasonStr = `Faculty is already teaching "${availabilityConflict.subject}" during this period.`;
+            if (availabilityConflict.type === 'SUBSTITUTION') reasonStr = "Faculty is already handling another substitution during this period.";
+
+            return res.status(409).json({
+                message: "Substitution conflict",
+                details: reasonStr
+            });
+        }
+
+        const sub = await prisma.substitution.upsert({
+            where: {
+                timetableId_date: {
+                    timetableId: ttId,
+                    date
+                }
+            },
+            update: { substituteFacultyId: subFId },
+            create: {
+                timetableId: ttId,
+                substituteFacultyId: subFId,
                 date
             }
         });
@@ -249,6 +318,37 @@ const deleteSubstitution = async (req, res) => {
     }
 };
 
+const getFacultyAvailability = async (req, res) => {
+    const { date, period } = req.query;
+    try {
+        if (!date || !period) {
+            return res.status(400).json({ message: "Date and period are required" });
+        }
+
+        const faculty = await prisma.user.findMany({
+            where: { role: 'FACULTY', isDisabled: false },
+            select: { id: true, fullName: true, department: true }
+        });
+
+        const availabilityPromises = faculty.map(async (f) => {
+            const conflict = await checkFacultyAvailability({
+                facultyId: f.id,
+                date,
+                period
+            });
+            return {
+                ...f,
+                conflict: conflict
+            };
+        });
+
+        const results = await Promise.all(availabilityPromises);
+        res.json(results);
+    } catch (error) {
+        handleError(res, error, "Error checking faculty availability");
+    }
+};
+
 module.exports = {
     getAllFaculty,
     createFaculty,
@@ -260,5 +360,6 @@ module.exports = {
     removeFacultyAbsence,
     getSubstitutions,
     assignSubstitute,
-    deleteSubstitution
+    deleteSubstitution,
+    getFacultyAvailability
 };

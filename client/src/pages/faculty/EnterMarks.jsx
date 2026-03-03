@@ -340,18 +340,21 @@ const EnterMarks = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {students.map((s, idx) => {
+                    const isAbsent = (val) =>
+                      val === -1 || val === "-1" || parseFloat(val) === -1;
                     const cleanMark = (val) =>
-                      val === -1 || val === null || val === undefined
+                      isAbsent(val) || val === null || val === undefined
                         ? 0
                         : parseFloat(val);
-                    const test = cleanMark(s.marks[`${selectedExam}_test`]);
-                    const assign = cleanMark(
-                      s.marks[`${selectedExam}_assignment`],
-                    );
-                    const attend = cleanMark(
-                      s.marks[`${selectedExam}_attendance`],
-                    );
+                    const rawTest = s.marks[`${selectedExam}_test`];
+                    const rawAssign = s.marks[`${selectedExam}_assignment`];
+                    const rawAttend = s.marks[`${selectedExam}_attendance`];
+                    const test = cleanMark(rawTest);
+                    const assign = cleanMark(rawAssign);
+                    const attend = cleanMark(rawAttend);
                     const total = test + assign + attend;
+                    // Show AB if ANY field is absent
+                    const anyAbsent = isAbsent(rawTest) || isAbsent(rawAssign) || isAbsent(rawAttend);
 
                     return (
                       <tr
@@ -373,13 +376,12 @@ const EnterMarks = () => {
                         <td className="p-2">
                           <input
                             type="number"
-                            className={`w-full p-2 border-2 rounded-lg text-center font-semibold transition-all ${
-                              isLocked
+                            className={`w-full p-2 border-2 rounded-lg text-center font-semibold transition-all ${isLocked
                                 ? "bg-gray-100 border-gray-300 cursor-not-allowed"
                                 : s.marks[`${selectedExam}_test`] === -1
                                   ? "bg-red-50 border-red-200 text-red-600"
                                   : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            }`}
+                              }`}
                             value={
                               s.marks[`${selectedExam}_test`] === -1
                                 ? "-1"
@@ -402,13 +404,12 @@ const EnterMarks = () => {
                         <td className="p-2">
                           <input
                             type="number"
-                            className={`w-full p-2 border-2 rounded-lg text-center font-semibold transition-all ${
-                              isLocked
+                            className={`w-full p-2 border-2 rounded-lg text-center font-semibold transition-all ${isLocked
                                 ? "bg-gray-100 border-gray-300 cursor-not-allowed"
                                 : s.marks[`${selectedExam}_assignment`] === -1
                                   ? "bg-red-50 border-red-200 text-red-600"
                                   : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            }`}
+                              }`}
                             value={
                               s.marks[`${selectedExam}_assignment`] === -1
                                 ? "-1"
@@ -431,13 +432,12 @@ const EnterMarks = () => {
                         <td className="p-2">
                           <input
                             type="number"
-                            className={`w-full p-2 border-2 rounded-lg text-center font-semibold transition-all ${
-                              isLocked
+                            className={`w-full p-2 border-2 rounded-lg text-center font-semibold transition-all ${isLocked
                                 ? "bg-gray-100 border-gray-300 cursor-not-allowed"
                                 : s.marks[`${selectedExam}_attendance`] === -1
                                   ? "bg-red-50 border-red-200 text-red-600"
                                   : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            }`}
+                              }`}
                             value={
                               s.marks[`${selectedExam}_attendance`] === -1
                                 ? "-1"
@@ -458,11 +458,9 @@ const EnterMarks = () => {
                           />
                         </td>
                         <td className="p-4 text-center">
-                          {s.marks[`${selectedExam}_test`] === -1 &&
-                          s.marks[`${selectedExam}_assignment`] === -1 &&
-                          s.marks[`${selectedExam}_attendance`] === -1 ? (
+                          {anyAbsent ? (
                             <span className="text-sm font-black text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-100 uppercase tracking-widest">
-                              ABSENT
+                              AB
                             </span>
                           ) : (
                             <span className="text-xl font-bold text-[#003B73]">
@@ -494,11 +492,10 @@ const EnterMarks = () => {
                 <button
                   onClick={handleSave}
                   disabled={saving || isLocked}
-                  className={`btn flex items-center gap-2 ${
-                    isLocked
+                  className={`btn flex items-center gap-2 ${isLocked
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                       : "btn-primary"
-                  }`}
+                    }`}
                 >
                   {saving ? (
                     <>

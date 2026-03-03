@@ -4,10 +4,10 @@ const {
     getAllFaculty, createFaculty, deleteFaculty,
     getTimetable, saveTimetable,
     getAbsences, markFacultyAbsent, removeFacultyAbsence,
-    getSubstitutions, assignSubstitute, deleteSubstitution
+    getSubstitutions, assignSubstitute, deleteSubstitution, getFacultyAvailability
 } = require('../controllers/adminController');
 const {
-    createStudent, updateStudent, getStudents, deleteStudent, promoteStudents, bulkUploadStudents
+    createStudent, updateStudent, getStudents, deleteStudent, promoteStudents, bulkUploadStudents, batchAssignRegisterNumbers
 } = require('../controllers/studentController');
 const {
     createSubject, getSubjects, deleteSubject, assignFaculty, removeFacultyAssignment
@@ -73,6 +73,7 @@ router.options('/faculty-absences', (req, res) => res.sendStatus(200)); // Expli
 router.delete('/faculty-absences', removeFacultyAbsence); // Support query-based & cleanup deletion
 router.delete('/faculty-absences/:id', removeFacultyAbsence);
 
+router.get('/faculty/availability', getFacultyAvailability);
 router.get('/substitutions', getSubstitutions);
 router.post('/substitutions', assignSubstitute);
 router.delete('/substitutions/:id', deleteSubstitution);
@@ -96,6 +97,7 @@ router.get('/attendance/export-excel', exportAttendanceExcel);
 
 router.post('/students/promote', promoteStudents);
 router.post('/students/bulk', bulkUploadStudents);
+router.post('/students/batch-assign-register', batchAssignRegisterNumbers);
 
 // Arrears
 router.get('/arrears', getArrears);

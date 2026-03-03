@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, Users, BookOpen, Calendar, ClipboardList, TrendingUp,
     Book, Bell, FileText, GraduationCap, Building2, Award, CheckCircle, UserCheck, Layout,
-    Settings as SettingsIcon, ChevronDown, ChevronRight
+    Settings as SettingsIcon, ChevronDown, ChevronRight, Send
 } from 'lucide-react';
 
 const Sidebar = ({ role, activePath }) => {
@@ -46,6 +46,7 @@ const Sidebar = ({ role, activePath }) => {
                 { label: 'Dummy Mapping', path: '/admin/dummy-mapping', icon: Book },
                 { label: 'External Staff', path: '/admin/external', icon: Users },
                 { label: 'Hall Allocation', path: '/admin/hall-allocation', icon: Layout },
+                { label: 'Dispatch', path: '/admin/dispatch', icon: Send },
             ]
         },
         {

@@ -18,6 +18,7 @@ import ExternalStaffManager from "./admin/ExternalStaffManager";
 import DummyNumberManager from "./admin/DummyNumberManager";
 import HallAllocation from "./admin/HallAllocation";
 import ArrearManagement from "./admin/ArrearManagement";
+import Dispatch from "./admin/Dispatch";
 import Announcements from "./Announcements";
 import Settings from "./Settings";
 
@@ -49,6 +50,7 @@ const AdminDashboard = () => {
             <Route path="external" element={<ExternalStaffManager />} />
             <Route path="hall-allocation" element={<HallAllocation />} />
             <Route path="arrears/manage" element={<ArrearManagement />} />
+            <Route path="dispatch" element={<Dispatch />} />
             <Route
               path="announcements"
               element={<Announcements role="ADMIN" />}

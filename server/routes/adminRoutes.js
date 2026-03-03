@@ -31,6 +31,7 @@ const { getAttendanceReport } = require('../controllers/attendanceController');
 const { verifyToken, isAdmin, isHod } = require('../middleware/authMiddleware');
 const { validateStudent, validateFaculty, validateSubject, validateMarks } = require('../middleware/validation');
 const { uploadArrears, getArrears, deleteArrear } = require('../controllers/arrearController');
+const { getSubjectsForDispatch, getStudentsForDispatch, exportDispatchPDF } = require('../controllers/dispatchController');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -117,5 +118,10 @@ router.delete('/hall-allocation/halls/:id', deleteHall);
 router.post('/hall-allocation/generate', generateAllocations);
 router.get('/hall-allocation/sessions/:id/export', exportConsolidatedPlan);
 router.get('/hall-allocation/sessions/:id/export-grid', exportSeatingGrid);
+
+// Dispatch Routes
+router.get('/dispatch/subjects', getSubjectsForDispatch);
+router.get('/dispatch/students', getStudentsForDispatch);
+router.post('/dispatch/export-pdf', exportDispatchPDF);
 
 module.exports = router;

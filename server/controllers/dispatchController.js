@@ -33,39 +33,51 @@ const getStudentsForDispatch = async (req, res) => {
         }
 
         const semInt = parseInt(semester);
+        const subIdInt = parseInt(subjectId);
 
-        // 1) Regular active students in this semester
+        const subject = await prisma.subject.findUnique({
+            where: { id: subIdInt }
+        });
+
+        if (!subject) return res.status(404).json({ error: 'Subject not found' });
+
+        // Import the exact same logic used by dummy mapping
+        const { getDeptCriteria } = require('../utils/deptUtils');
+        const deptCriteria = await getDeptCriteria(subject.department);
+
+        // 1. Fetch regular students
         const regularStudents = await prisma.student.findMany({
             where: {
-                currentSemester: semInt,
+                ...deptCriteria,
+                currentSemester: semInt,  // Dummy mapping uses semester, but currentSemester is safer for active status
                 status: 'ACTIVE',
                 registerNumber: { not: null }
             },
-            select: { id: true, name: true, registerNumber: true, rollNo: true, department: true },
+            select: { id: true, name: true, registerNumber: true, rollNo: true, department: true }
         });
 
         const regularIds = new Set(regularStudents.map(s => s.id));
 
-        // 2) Arrear students: students who have an uncleared arrear for this subject
-        const arrears = await prisma.arrear.findMany({
+        // 2. Arrear students: students who have an active arrear attempt for this subject
+        const activeArrearAttempts = await prisma.arrearAttempt.findMany({
             where: {
-                subjectId: parseInt(subjectId),
-                isCleared: false,
-                student: {
-                    registerNumber: { not: null }
-                }
+                arrear: { subjectId: subIdInt },
+                resultStatus: null // Represents an active, ungraded attempt
             },
             include: {
-                student: {
-                    select: { id: true, name: true, registerNumber: true, rollNo: true, department: true }
+                arrear: {
+                    include: {
+                        student: { select: { id: true, name: true, registerNumber: true, rollNo: true, department: true } }
+                    }
                 }
             }
         });
 
-        // 3) Merge — arrear students not already in regular list
-        const arrearStudents = arrears
-            .filter(a => !regularIds.has(a.student.id))
-            .map(a => ({ ...a.student, isArrear: true }));
+        // 3. Merge — arrear students not already in regular list
+        const arrearStudents = activeArrearAttempts
+            .map(attempt => attempt.arrear.student)
+            .filter(student => !regularIds.has(student.id))
+            .map(student => ({ ...student, isArrear: true }));
 
         // Mark regular students (not arrear)
         const allStudents = [

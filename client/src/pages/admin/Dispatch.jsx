@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import CustomSelect from "../../components/CustomSelect";
 
 const DISPATCH_SIZE = 50;
 const COLS = 5;
@@ -169,16 +170,15 @@ const Dispatch = () => {
                     {/* Subject — spans 2 cols */}
                     <div className="col-span-1 sm:col-span-2 lg:col-span-2 min-w-0">
                         <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Subject</label>
-                        <select
-                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm font-medium bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        <CustomSelect
+                            value={selectedSubject ? String(selectedSubject.id) : ""}
                             onChange={handleSubjectChange}
-                            defaultValue=""
                         >
                             <option value="">— Select Subject —</option>
                             {subjects.map(s => (
                                 <option key={s.id} value={s.id}>{s.code}: {s.name} — Sem {s.semester}</option>
                             ))}
-                        </select>
+                        </CustomSelect>
                         {selectedSubject && (
                             <p className="text-xs text-blue-600 font-bold mt-1 ml-1">Semester {selectedSubject.semester} · {selectedSubject.code}</p>
                         )}
@@ -197,11 +197,14 @@ const Dispatch = () => {
                         <div className="flex gap-1.5">
                             <input type="time" value={time} onChange={e => setTime(e.target.value)}
                                 className="min-w-0 flex-1 w-0 border border-gray-200 rounded-2xl px-2 py-3 text-sm font-medium bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-                            <select value={ampm} onChange={e => setAmpm(e.target.value)}
-                                className="shrink-0 w-14 border border-gray-200 rounded-2xl px-1 py-3 text-sm font-medium bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-center">
+                            <CustomSelect
+                                value={ampm}
+                                onChange={e => setAmpm(e.target.value)}
+                                className="w-24 shrink-0"
+                            >
                                 <option value="AM">AM</option>
                                 <option value="PM">PM</option>
-                            </select>
+                            </CustomSelect>
                         </div>
                     </div>
 

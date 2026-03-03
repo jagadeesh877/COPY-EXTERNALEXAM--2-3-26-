@@ -184,19 +184,17 @@ const CourseManager = () => {
               onChange={(e) => setFilterDept(e.target.value)}
             >
               <option value="">All Departments</option>
-              <option value="COMMON">First Year (Common)</option>
-              {(() => {
-                const fyDept = departments.find(d => d.name?.toLowerCase() === "first year");
-                if (fyDept) {
-                  return <option value={fyDept.code || fyDept.name}>FIRST YEAR ({fyDept.code || fyDept.name})</option>;
-                }
-                return null;
-              })()}
+              <option value="COMMON">
+                {(() => {
+                  const fyDept = departments.find(d => d.name?.toLowerCase() === "first year");
+                  return fyDept ? `${fyDept.code || 'GEN'} (1st Year Common)` : 'GEN (1st Year Common)';
+                })()}
+              </option>
               {departments
                 .filter(d => d.name?.toLowerCase() !== "first year")
                 .map((d) => (
                   <option key={d.id} value={d.code || d.name}>
-                    {d.name}
+                    {d.code || d.name}
                   </option>
                 ))}
             </CustomSelect>
